@@ -99,7 +99,6 @@ def plot_scan_data(step_data, step_count=cfg.SCAN_SHOW_LAST_STEP_NUMBERS):
         ax.set_title(f"Motor: {motor} Values by Steps")
         ax.set_xlabel("Steps")
         ax.set_ylabel("Motor Values")
-        # ax.legend(loc="best")
         ax.grid(True)
 
     for j, meter in enumerate(meters):
@@ -110,7 +109,6 @@ def plot_scan_data(step_data, step_count=cfg.SCAN_SHOW_LAST_STEP_NUMBERS):
         ax.set_title(f"Meter: {meter} Values by Steps")
         ax.set_xlabel("Steps")
         ax.set_ylabel("Meter Values")
-        ax.legend(loc="best")
         ax.grid(True)
 
     for row in range(total_rows):
