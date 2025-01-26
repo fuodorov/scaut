@@ -1,0 +1,51 @@
+import os
+import sys
+from logging import config as logging_config
+
+from .logger import LOGGING
+
+logging_config.dictConfig(LOGGING)
+
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+sys.path.append(BASE_DIR)
+
+DATA_DIR = os.path.join(os.path.dirname(BASE_DIR), "data")
+
+os.makedirs(DATA_DIR, exist_ok=True)
+
+SCAN_SHOW_LAST_STEP_NUMBERS = 10
+
+ELEGANT_SIMULATION_DIR = os.environ.get("ELEGANT_SIMULATION_DIR", os.path.abspath(os.path.join(BASE_DIR, "simulations", "elegant")))
+
+ELEGANT_SIMULATION_CONFIG_FILE = os.environ.get("ELEGANT_SIMULATION_CONFIG_FILE", os.path.join(ELEGANT_SIMULATION_DIR, "config.ele"))
+
+ELEGANT_SIMULATION_LATTICES_FILE = os.environ.get("ELEGANT_SIMULATION_LATTICES_FILE", os.path.join(ELEGANT_SIMULATION_DIR, "config.lte"))
+
+ELEGANT_SIMULATION_CONFIG_PARAMETERS_FILE = os.environ.get("ELEGANT_SIMULATION_CONFIG_PARAMETERS_FILE", os.path.join(ELEGANT_SIMULATION_DIR, "config.par"))
+
+ELEGANT_SIMULATION_DATA_DIR = os.environ.get("ELEGANT_SIMULATION_DATA_DIR", os.path.join(ELEGANT_SIMULATION_DIR, "results"))
+
+ELEGANT_BEAMLINE_DATA_FILE = os.environ.get("ELEGANT_BEAMLINE_DATA_FILE", os.path.join(ELEGANT_SIMULATION_DATA_DIR, "beamline.mag"))
+
+ELEGANT_TWISS_DATA_FILE = os.environ.get("ELEGANT_TWISS_DATA_FILE", os.path.join(ELEGANT_SIMULATION_DATA_DIR, "twiss.twi"))
+
+ELEGANT_CENTROID_DATA_FILE = os.environ.get("ELEGANT_CENTROID_DATA_FILE", os.path.join(ELEGANT_SIMULATION_DATA_DIR, "beam.cen"))
+
+ELEGANT_PARAMETERS_DATA_FILE = os.environ.get("ELEGANT_PARAMETERS_DATA_FILE", os.path.join(ELEGANT_SIMULATION_DATA_DIR, "parameters.sdds"))
+
+ELEGANT_XYZ_DATA_FILE = os.environ.get("ELEGANT_PARAMETERS_DATA_FILE", os.path.join(ELEGANT_SIMULATION_DATA_DIR, "xyz.sdds"))
+
+ELEGANT_BEAMLINE_DATA_COLUMNS = ["s", "Profile", "ElementName"]
+
+ELEGANT_TWISS_DATA_COLUMNS = ["ElementName", "s", "betax", "betay", "etax", "etay", "pCentral0", "xAperture", "yAperture"]
+
+ELEGANT_CENTROID_DATA_COLUMNS = ["ElementName", "s", "Cx", "Cy", "pCentral"]
+
+ELEGANT_PARAMETERS_DATA_COLUMNS = ["ElementName", "ElementParameter", "ParameterValue", "ElementType", "ElementOccurence", "ElementGroup"]
+
+ELEGANT_ELEMENT_EXIST_PARAMETERS = [*ELEGANT_BEAMLINE_DATA_COLUMNS, *ELEGANT_TWISS_DATA_COLUMNS, *ELEGANT_CENTROID_DATA_COLUMNS, *ELEGANT_PARAMETERS_DATA_COLUMNS]
+
+ELEGANT_DATA_EXIST_FILES = [ELEGANT_BEAMLINE_DATA_FILE, ELEGANT_TWISS_DATA_FILE, ELEGANT_CENTROID_DATA_FILE, ELEGANT_PARAMETERS_DATA_FILE, ELEGANT_XYZ_DATA_FILE]
+
+ELEGANT_EXIST_FILES_WITH_PARAMETERS = [ELEGANT_PARAMETERS_DATA_FILE, ELEGANT_SIMULATION_CONFIG_PARAMETERS_FILE]

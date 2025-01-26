@@ -1,0 +1,50 @@
+&transmute_elements name=*, type=WATCH, new_type=DRIF &end
+!&transmute_elements name=*, type=RFCA, new_type=DRIF &end
+
+&divide_elements
+    name = *
+    maximum_length = 0.01
+&end
+
+&run_setup
+    lattice = config.lte
+    magnets = results/beamline.mag
+    centroid = results/beam.cen
+    parameters = results/parameters.sdds
+    p_central_mev = 47.99
+    use_beamline = machine
+    default_order = 2
+&end
+ 
+&load_parameters
+    filename = config.par
+    change_defined_values = 1
+    verbose = 1
+    allow_missing_files = 1  
+&end
+
+&twiss_output
+    filename = results/twiss.twi
+    matched = 0
+    beta_x = 4.17
+    alpha_x = -0.83
+    beta_y = 4.17
+    alpha_y = -0.83
+    eta_x = 0
+    eta_y = 0
+    etap_x = 0
+    etap_y = 0
+&end
+
+&floor_coordinates
+    filename = results/xyz.sdds
+    include_vertices = 0
+    vertices_only = 0
+    magnet_centers = 0
+&end
+
+&run_control &end
+
+&bunched_beam &end
+
+&track &end
