@@ -18,9 +18,18 @@ def scan(meters, motors, *, get_func, put_func, verify_motor=True,
 ):
     data = data or {}
     metadata = metadata or {}
-
+    original_motor_values = {}
+    
+    for motor_name, _ in motors:
+        try:
+            original_motor_values[motor_name] = get_func(motor_name)
+        except Exception as e:
+            scan_logger.error(f"Error getting initial value for motor '{motor_name}': {e}")
+            raise RuntimeError(f"Failed to retrieve initial motor value for '{motor_name}'")
+            
     metadata["scan_start_time"] = datetime.now().isoformat()
     metadata["motors"] = [motor[0] for motor in motors]
+    metadata["original_motor_values"] =  original_motor_values,
     metadata["meters"] = meters
     metadata["parameters"] = {
         "verify_motor": verify_motor,
@@ -89,6 +98,22 @@ def scan(meters, motors, *, get_func, put_func, verify_motor=True,
         scan_logger.exception(f"Error during scan process: {e}")
     
     finally:
+        scan_logger.info("Restoring motors to their original values")
+        for motor_name, original_value in original_motor_values.items():
+            try:
+                set_motor_value(
+                    motor_name, original_value,
+                    get_func=get_func,
+                    put_func=put_func,
+                    verify_motor=verify_motor,
+                    max_retries=max_retries,
+                    delay=delay,
+                    tolerance=tolerance
+                )
+                scan_logger.info(f"Motor '{motor_name}' restored to its original value {original_value}")
+            except Exception as e:
+                scan_logger.error(f"Failed to restore motor '{motor_name}' to its original value: {e}")
+                
         metadata["scan_end_time"] = datetime.now().isoformat()
 
         if save:

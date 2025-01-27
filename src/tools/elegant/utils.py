@@ -20,28 +20,38 @@ def check_file_exists(file):
         raise ElegantFileNotFoundError(msg)
     
 
-def _remove_elegant_simulation_data(dir=cfg.ELEGANT_SIMULATION_DATA_DIR):
+def _reset_elegant_simulation_data(dir=cfg.ELEGANT_SIMULATION_DATA_DIR):
     elegant_logger.info(f"Resetting Elegant environment data by removing files in directory: {dir}")
     
     for f in glob.glob(f'{dir}/*'): 
         try:
-            os.remove(f)
-        except OSError as e:
+            reset_file_data(f)
+        except Exception as e:
             msg = f"Cannot remove file '{f}': {e}"
             elegant_logger.error(msg)
             raise ElegantRemoveFileError(msg)
 
     elegant_logger.info("Reset of Elegant environment completed.")
+    
+
+def reset_file_data(file):
+    elegant_logger.info(f"Resetting file data: {file}")
+    
+    try:
+        open(file, 'w').close()
+    except Exception as e:
+        msg = f"Cannot reset file '{f}': {e}"
+        elegant_logger.error(msg)
+        raise e
+
+    elegant_logger.info("Reset file completed.")
 
 
 def _run_elegant_process(file=cfg.ELEGANT_SIMULATION_CONFIG_FILE, dir=cfg.ELEGANT_SIMULATION_DIR):
-    try:
-        check_file_exists(file)
-    except ElegantFileNotFoundError as e:
-        raise e
-        
+    check_file_exists(file)
+    
     elegant_logger.info(f"Running Elegant with config file '{file}' in directory '{dir}'.")
-    _remove_elegant_simulation_data()
+    _reset_elegant_simulation_data()
     cmd = f'cd {dir} && elegant {file}'
     process = subprocess.run(
         cmd,
@@ -62,10 +72,7 @@ def _run_elegant_process(file=cfg.ELEGANT_SIMULATION_CONFIG_FILE, dir=cfg.ELEGAN
 
 
 def sdds_to_df(file, columns):
-    try:
-        check_file_exists(file)
-    except ElegantFileNotFoundError as e:
-        raise e
+    check_file_exists(file)
     
     elegant_logger.info(f"Converting SDDS file '{file}' to DataFrame with columns={columns}.")
     col_str = "-col=" + ",".join(columns)
@@ -89,10 +96,7 @@ def sdds_to_df(file, columns):
 
 
 def _get_element_field_value_from_file(name, parameter, file=cfg.ELEGANT_PARAMETERS_DATA_FILE, occurence=1):
-    try:
-        check_file_exists(file)
-    except ElegantFileNotFoundError as e:
-        raise e
+    check_file_exists(file)
     
     elegant_logger.info(
         f"Fetching parameter '{parameter}' from element '{name}' in file '{file}', occurence={occurence}."
@@ -148,10 +152,7 @@ def get_element_field_value(name, field):
 
 
 def _get_element_type_from_file(name, file=cfg.ELEGANT_PARAMETERS_DATA_FILE):
-    try:
-        check_file_exists(file)
-    except ElegantFileNotFoundError as e:
-        raise e
+    check_file_exists(file)
     
     name = name.upper()
     elegant_logger.info(f"Fetching element type for '{name}' from file '{file}'.")
@@ -185,6 +186,16 @@ def get_element_type(name):
             return value
 
     msg = f"Element '{name}' is not exists!"
+    elegant_logger.warning(msg)
+
+    elegant_logger.warning(f"Try find element {name} after run elegant!")
+    # try with run elegant!
+    _run_elegant_process()
+    for file in cfg.ELEGANT_EXIST_FILES_WITH_PARAMETERS:
+        value = _get_element_type_from_file(name, file)
+        if value is not None:
+            return value
+            
     elegant_logger.error(msg)
     raise ElegantElementNotFoundError(msg)
 
@@ -196,10 +207,7 @@ def update_parameter(
     columns=cfg.ELEGANT_PARAMETERS_DATA_COLUMNS, 
     occurence=1, clear=False
 ):
-    try:
-        check_file_exists(file)
-    except ElegantFileNotFoundError as e:
-        raise e
+    check_file_exists(file)
     
     elegant_logger.info(
         f"Updating parameter '{parameter}' for element '{name}' with value='{value}', "
