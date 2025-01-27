@@ -2,7 +2,7 @@ from . import utils, exceptions
 
 
 def _parse_name(name):
-    parts = name.split('.', maxsplit=1)
+    parts = name.rsplit('.', maxsplit=1)
     if len(parts) == 1:
         return parts[0], None
     return parts[0], parts[1]
