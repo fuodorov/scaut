@@ -29,9 +29,10 @@ def scan(meters, motors, *, get_func, put_func, verify_motor=True,
             
     metadata["scan_start_time"] = datetime.now().isoformat()
     metadata["motors"] = [motor[0] for motor in motors]
-    metadata["original_motor_values"] =  original_motor_values,
+    metadata["original_motor_values"] =  original_motor_values
     metadata["meters"] = meters
     metadata["parameters"] = {
+        "save": save,
         "verify_motor": verify_motor,
         "max_retries": max_retries,
         "delay": delay,
@@ -118,6 +119,7 @@ def scan(meters, motors, *, get_func, put_func, verify_motor=True,
 
         if save:
             dirname = create_output_directory(dirname)
+            metadata["parameters"]["dirname"] = dirname
             save_data(os.path.join(dirname, "data.json"), data)
             save_data(os.path.join(dirname, "metadata.json"), metadata)
             scan_logger.info(f"Data saved to directory {dirname}")

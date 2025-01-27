@@ -20,7 +20,7 @@ def eleget(name, as_string=False):
         return None
     
     try:
-        element_type = utils.get_element_type(element)
+        is_element_exist = bool(utils.get_element_type(element))
         out = utils.get_element_field_value(element, field)
     except (exceptions.ElegantFileNotFoundError, exceptions.ElegantFieldNotFoundError, exceptions.ElegantElementNotFoundError) as e:
         utils.elegant_logger.error(e)
