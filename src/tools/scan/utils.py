@@ -31,7 +31,7 @@ def save_data(data_filename, data):
 
 
 def set_motor_value(motor_name, motor_value, get_func, put_func, verify_motor, max_retries, delay, tolerance):
-    if verify_motor is not None:
+    if verify_motor:
         for attempt in range(max_retries):
             put_func(motor_name, motor_value)
             time.sleep(delay)
@@ -128,7 +128,7 @@ def print_table_scan_data(step_data, step_count=cfg.SCAN_SHOW_LAST_STEP_NUMBERS)
     table_data = []
     for step in steps[::-1]:
         row = {}
-        row.update({"Step": step.get("step_index", {})})
+        row.update({"Step": step.get('step_index', {})})
         row.update(step.get("motor_values", {}))
         row.update(step.get("meter_data", {}))
         table_data.append(row)
