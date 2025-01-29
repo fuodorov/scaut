@@ -29,11 +29,7 @@ def eleget(name, as_string=False):
     return str(out) if as_string else out
 
 
-def eleput(name, value):
-    if eleget(name) == value:
-        utils.elegant_logger.info("Value is not change. Continue!")
-        return 1
-        
+def eleput(name, value):     
     try:
         element, field = _parse_name(name)
     except exceptions.ElegantParseError as e:

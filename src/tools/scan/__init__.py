@@ -10,22 +10,25 @@ from .utils import (
     collect_meters_data,
     scan_logger,
 )
+from .decorators import response_measurements
+
 
 def scan(meters, motors, *, get_func, put_func, verify_motor=True, 
          max_retries=3, delay=0.1, tolerance=1e-6, 
          data={}, metadata={}, save=False, dirname=cfg.DATA_DIR,
-         callbacks=[],
+         callbacks=[], save_original_motor_values=True,
 ):
     data = data or {}
     metadata = metadata or {}
     original_motor_values = {}
-    
-    for motor_name, _ in motors:
-        try:
-            original_motor_values[motor_name] = get_func(motor_name)
-        except Exception as e:
-            scan_logger.error(f"Error getting initial value for motor '{motor_name}': {e}")
-            raise RuntimeError(f"Failed to retrieve initial motor value for '{motor_name}'")
+
+    if save_original_motor_values:
+        for motor_name, _ in motors:
+            try:
+                original_motor_values[motor_name] = get_func(motor_name)
+            except Exception as e:
+                scan_logger.error(f"Error getting initial value for motor '{motor_name}': {e}")
+                raise RuntimeError(f"Failed to retrieve initial motor value for '{motor_name}'")
             
     metadata["scan_start_time"] = datetime.now().isoformat()
     metadata["motors"] = [motor[0] for motor in motors]
@@ -92,28 +95,29 @@ def scan(meters, motors, *, get_func, put_func, verify_motor=True,
                     })
                     scan_logger.info(f"Callback {callback.__name__} process completed")
 
-    except KeyboardInterrupt:
+    except KeyboardInterrupt as e:
         scan_logger.error("Scan process stopped by user")
-    
+        
     except Exception as e:
         scan_logger.exception(f"Error during scan process: {e}")
     
     finally:
-        scan_logger.info("Restoring motors to their original values")
-        for motor_name, original_value in original_motor_values.items():
-            try:
-                set_motor_value(
-                    motor_name, original_value,
-                    get_func=get_func,
-                    put_func=put_func,
-                    verify_motor=verify_motor,
-                    max_retries=max_retries,
-                    delay=delay,
-                    tolerance=tolerance
-                )
-                scan_logger.info(f"Motor '{motor_name}' restored to its original value {original_value}")
-            except Exception as e:
-                scan_logger.error(f"Failed to restore motor '{motor_name}' to its original value: {e}")
+        if save_original_motor_values:
+            scan_logger.info("Restoring motors to their original values")
+            for motor_name, original_value in original_motor_values.items():
+                try:
+                    set_motor_value(
+                        motor_name, original_value,
+                        get_func=get_func,
+                        put_func=put_func,
+                        verify_motor=verify_motor,
+                        max_retries=max_retries,
+                        delay=delay,
+                        tolerance=tolerance
+                    )
+                    scan_logger.info(f"Motor '{motor_name}' restored to its original value {original_value}")
+                except Exception as e:
+                    scan_logger.error(f"Failed to restore motor '{motor_name}' to its original value: {e}")
                 
         metadata["scan_end_time"] = datetime.now().isoformat()
 
@@ -129,3 +133,7 @@ def scan(meters, motors, *, get_func, put_func, verify_motor=True,
     return {"data": data, "metadata": metadata}
 
 
+@response_measurements()
+def scan_response_matrix(*args, **kwargs):
+    return scan(*args, **kwargs)
+    
