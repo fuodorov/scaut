@@ -44,7 +44,6 @@ def scan(meters, motors, *, get_func, put_func, verify_motor=True,
 
     motor_names, motor_values = [motor[0] for motor in motors], [motor[1] for motor in motors]
     all_combinations = list(itertools.product(*motor_values))
-    metadata["total_steps"] = len(all_combinations)
 
     scan_logger.info("Starting scan process")
     scan_logger.info(f"Motors: {motor_names}")
@@ -76,14 +75,14 @@ def scan(meters, motors, *, get_func, put_func, verify_motor=True,
                     data[motor_name][motor_value] = {}
                 data[motor_name][motor_value].update(meter_data)
 
+            if "steps" not in metadata:
+                metadata["steps"] = []
             step_metadata = {
-                "step_index": step_index + 1,
+                "step_index": len(metadata["steps"]) + 1,
                 "motor_values": dict(zip(motor_names, combination)),
                 "meter_data": meter_data,
                 "timestamp": datetime.now().isoformat(),
             }
-            if "steps" not in metadata:
-                metadata["steps"] = []
             metadata["steps"].append(step_metadata)
 
             for callback in callbacks:
@@ -120,7 +119,8 @@ def scan(meters, motors, *, get_func, put_func, verify_motor=True,
                     scan_logger.error(f"Failed to restore motor '{motor_name}' to its original value: {e}")
                 
         metadata["scan_end_time"] = datetime.now().isoformat()
-
+        metadata["total_steps"] = len(metadata["steps"])
+        
         if save:
             dirname = create_output_directory(dirname)
             metadata["parameters"]["dirname"] = dirname

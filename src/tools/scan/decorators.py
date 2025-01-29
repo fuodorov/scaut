@@ -29,6 +29,7 @@ def response_measurements(targets={}):
                 motors=[(motor_names[i], [off_values[i]]) for i in range(n_motors)],
                 **{k: v for k, v in kwargs.items() if k not in ["motors","meters"]}
             )
+            response_metadata = baseline_result["metadata"]
 
             baseline_meter_values = {}
             if motor_names:
@@ -55,8 +56,10 @@ def response_measurements(targets={}):
                 cal_result = scan_func(
                     meters=meters,
                     motors=cal_motors,
+                    metadata=response_metadata,
                     **{k: v for k, v in kwargs.items() if k not in ["motors","meters"]}
                 )
+                response_metadata.update(cal_result["metadata"])
                 this_data = cal_result["data"].get(mn, {}).get(on_values[i], {})
 
                 delta_motors_row = [0.0]*n_motors
@@ -81,12 +84,10 @@ def response_measurements(targets={}):
             pseudo_inverse = np.linalg.pinv(motors_matrix)         # (n_motors, n_motors)
             response_matrix = pseudo_inverse @ measurements_matrix  # (n_motors, n_meters)
             scan_logger.debug(f"response_matrix:\n{response_matrix}")
+            response_metadata["motors_matrix"] = motors_matrix.tolist()
+            response_metadata["measurements_matrix"] = measurements_matrix.tolist()
+            response_metadata["response_matrix"] = response_matrix.tolist()
             
-            response_metadata = {
-                "motors_matrix": motors_matrix.tolist(),
-                "measurements_matrix": measurements_matrix.tolist(),
-                "response_matrix": response_matrix.tolist(),
-            }
             target_values = []
             baseline_array = []
 
@@ -108,7 +109,6 @@ def response_measurements(targets={}):
             scan_logger.debug(f"Final motor positions: {final_positions}")
             
             final_motors = list(zip(motor_names, [[pos] for pos in final_positions]))
-            
             final_result = scan_func(
                 meters=meters,
                 motors=final_motors,
