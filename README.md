@@ -1,2 +1,3 @@
-# skif-utils
-Utilities for experiments on SKIF
+# Scan Accelerator Utils
+
+Utilities for experiments on accelerators

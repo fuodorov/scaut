@@ -12,7 +12,7 @@ from IPython.display import clear_output
 import math
 import pandas as pd
 
-from ...core import config as cfg
+from ..core import config as cfg
 
 scan_logger = logging.getLogger('Scan')
 

@@ -1,4 +1,4 @@
-from ...core import config as cfg
+from ..core import config as cfg
 
 import .utils as elegant_logger, get_element_type
 

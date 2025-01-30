@@ -4,7 +4,7 @@ from datetime import datetime
 from tqdm import tnrange, tqdm_notebook
 from tqdm.contrib import tzip
 
-from ...core import config as cfg
+from ..core import config as cfg
 from .utils import (
     create_output_directory,
     save_data,
@@ -88,14 +88,14 @@ def scan(meters, motors, *, get_func, put_func, verify_motor=True,
             }
             metadata["steps"].append(step_metadata)
 
-            for callback in callback:
-                if callback is not None:
-                    scan_logger.info(f"Starting callback {callback.__name__}")
-                    callback({
+            for call in callback:
+                if call is not None:
+                    scan_logger.info(f"Starting callback {call.__name__}")
+                    call({
                         "data": data,
                         "metadata": metadata
                     })
-                    scan_logger.info(f"Callback {callback.__name__} process completed")
+                    scan_logger.info(f"Callback {call.__name__} process completed")
 
     except KeyboardInterrupt as e:
         scan_logger.error("Scan process stopped by user")

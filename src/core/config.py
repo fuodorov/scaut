@@ -10,7 +10,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 sys.path.append(BASE_DIR)
 
-DATA_DIR = os.path.join(os.path.dirname(BASE_DIR), "data")
+DATA_DIR = os.path.abspath(os.environ.get("DATA_DIR", "data"))
 
 os.makedirs(DATA_DIR, exist_ok=True)
 
@@ -20,9 +20,9 @@ SCAN_SAMPLE_SIZE = os.environ.get("SCAN_SAMPLE_SIZE", 10)
 
 SCAN_RANDOM_STATE = os.environ.get("SCAN_RANDOM_STATE", 42)
 
-SCAN_BAYESIAN_OPTIMIZATION_N_CALLS = os.environ.get("SCAN_BAYESIAN_OPTIMIZATION_N_CALLS", 50)
+SCAN_BAYESIAN_OPTIMIZATION_N_CALLS = os.environ.get("SCAN_BAYESIAN_OPTIMIZATION_N_CALLS", 10)
 
-ELEGANT_SIMULATION_DIR = os.environ.get("ELEGANT_SIMULATION_DIR", os.path.abspath(os.path.join(BASE_DIR, "simulations", "elegant")))
+ELEGANT_SIMULATION_DIR = os.path.abspath(os.environ.get("ELEGANT_SIMULATION_DIR", "elegant"))
 
 ELEGANT_SIMULATION_CONFIG_FILE = os.environ.get("ELEGANT_SIMULATION_CONFIG_FILE", os.path.join(ELEGANT_SIMULATION_DIR, "config.ele"))
 

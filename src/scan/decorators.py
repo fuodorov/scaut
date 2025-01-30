@@ -6,7 +6,7 @@ from skopt.space import Real, Integer
 from skopt.utils import use_named_args
 
 from .utils import scan_logger
-from ...core import config as cfg
+from ..core import config as cfg
 
 def response_measurements(targets={}):
     def decorator(scan_func):

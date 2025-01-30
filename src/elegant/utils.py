@@ -7,7 +7,7 @@ import uuid
 import logging
 import subprocess
 
-from ...core import config as cfg
+from ..core import config as cfg
 from .exceptions import ElegantFileNotFoundError, ElegantRemoveFileError, ElegantProcessError, ElegantFieldNotFoundError, ElegantElementNotFoundError
 
 elegant_logger = logging.getLogger('Elegant')
