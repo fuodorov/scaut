@@ -5,7 +5,7 @@ import json
 import time
 import itertools
 import logging
-from tqdm import tqdm
+from tqdm import tnrange, tqdm_notebook
 
 import matplotlib.pyplot as plt
 from IPython.display import clear_output
@@ -50,11 +50,13 @@ def set_motor_value(motor_name, motor_value, get_func, put_func, verify_motor, m
         return True
 
 
-def collect_meters_data(meters, get_func):
+def collect_meters_data(meters, get_func, sample_size):
     data = {}
-    for meter in meters:
-        val = get_func(meter)
-        data[meter] = val
+    for meter in tqdm_notebook(meters, desc="Collect meter data"):
+        values = []
+        for val in tnrange(sample_size, desc="Fetch"):
+            values.append(get_func(meter))
+        data[meter] = sum(values) / sample_size
         scan_logger.debug(f"Data collected for {meter}: {val}")
     return data
 

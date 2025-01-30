@@ -14,7 +14,13 @@ DATA_DIR = os.path.join(os.path.dirname(BASE_DIR), "data")
 
 os.makedirs(DATA_DIR, exist_ok=True)
 
-SCAN_SHOW_LAST_STEP_NUMBERS = 10
+SCAN_SHOW_LAST_STEP_NUMBERS =  os.environ.get("SCAN_SHOW_LAST_STEP_NUMBERS", 10)
+
+SCAN_SAMPLE_SIZE = os.environ.get("SCAN_SAMPLE_SIZE", 10)
+
+SCAN_RANDOM_STATE = os.environ.get("SCAN_RANDOM_STATE", 42)
+
+SCAN_BAYESIAN_OPTIMIZATION_N_CALLS = os.environ.get("SCAN_BAYESIAN_OPTIMIZATION_N_CALLS", 50)
 
 ELEGANT_SIMULATION_DIR = os.environ.get("ELEGANT_SIMULATION_DIR", os.path.abspath(os.path.join(BASE_DIR, "simulations", "elegant")))
 

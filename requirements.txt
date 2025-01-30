@@ -1,0 +1,9 @@
+scipy
+numpy
+scikit-optimize
+pandas
+matplotlib
+plotly
+pyepics
+jupyter
+tqdm

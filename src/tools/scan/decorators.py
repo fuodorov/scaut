@@ -1,8 +1,12 @@
 import numpy as np
+import random
 from functools import wraps
+from skopt import gp_minimize
+from skopt.space import Real, Integer
+from skopt.utils import use_named_args
 
 from .utils import scan_logger
-
+from ...core import config as cfg
 
 def response_measurements(targets={}):
     def decorator(scan_func):
@@ -121,3 +125,134 @@ def response_measurements(targets={}):
         return wrapper
     return decorator
 
+
+def bayesian_optimization(targets={}, n_calls=10, random_state=42):
+    def decorator(scan_func):
+        @wraps(scan_func)
+        def wrapper(*args, **kwargs):
+            scan_logger.info("Launching the Bayesian optimization decorator.")
+            
+            motors, meters = kwargs.get("motors", []), kwargs.get("meters", [])
+            motor_names = [m[0] for m in motors]
+            motor_bounds = {}
+            
+            scan_logger.debug(f"List motors: {motor_names}")
+            scan_logger.debug(f"List meters: {meters}")
+            
+            for motor in motors:
+                name, values = motor
+                motor_bounds[name] = (min(values), max(values))
+            
+            space = []
+            motor_order = []
+            for name in motor_names:
+                lb, ub = motor_bounds[name]
+                space.append(Real(lb, ub, name=name))
+                motor_order.append(name)
+            
+            off_values = [motor_bounds[name][0] for name in motor_names]
+            on_values = [motor_bounds[name][1] for name in motor_names]
+            
+            scan_logger.info("Performing a basic scan with the initial values of the motors.")
+            baseline_result = scan_func(
+                meters=meters,
+                motors=[(name, [val]) for name, val in zip(motor_names, off_values)],
+                *args,
+                **{k: v for k, v in kwargs.items() if k not in ["motors", "meters"]}
+            )
+            response_metadata = baseline_result.get("metadata", {})
+            
+            baseline_meter_values = {}
+            if motor_names:
+                scan_logger.debug("Extracting basic metric values from the result of a basic scan.")
+                first_motor = motor_names[0]
+                first_off = off_values[0]
+                base_data = baseline_result["data"].get(first_motor, {})
+                if first_off in base_data:
+                    for meter_name in meters:
+                        baseline_meter_values[meter_name] = base_data[first_off].get(meter_name, 0.0)
+                else:
+                    for meter_name in meters:
+                        baseline_meter_values[meter_name] = 0.0
+                            
+            scan_logger.debug(f"Base list meter values: {baseline_meter_values}")
+            
+            @use_named_args(space)
+            def objective(**motor_settings):
+                scan_logger.debug(f"Текущие настройки моторов: {motor_settings}")
+                calibrated_motors = [(name, [val]) for name, val in motor_settings.items()]
+                
+                scan_result = scan_func(
+                    meters=meters,
+                    motors=calibrated_motors,
+                    metadata=response_metadata,
+                    *args,
+                    **{k: v for k, v in kwargs.items() if k not in ["motors", "meters"]}
+                )
+                
+                measured_value = {}
+                for motor, values in scan_result["data"].items():
+                    for val, meter_data in values.items():
+                        for meter in meters:
+                            measured_value[meter] = meter_data.get(meter, 0.0)
+                
+                delta = {}
+                for meter in meters:
+                    delta[meter] = np.abs(measured_value.get(meter, 0.0))
+                
+                scan_logger.debug(f"Измеренные дельты метрик: {delta}")
+                
+                target_delta = sum(np.abs(measured_value.get(meter, 0.0) - targets.get(meter, 0.0)) for meter in meters)
+                scan_logger.debug(f"Target delta ({targets}): {target_delta}")
+                
+                return target_delta
+            
+            scan_logger.info("The beginning of Bayesian optimization.")
+            res = gp_minimize(
+                func=objective,
+                dimensions=space,
+                n_calls=n_calls,
+                random_state=random_state,
+            )
+            
+            scan_logger.info("Bayesian optimization is complete.")
+            scan_logger.info(f"Best result: {res.x}")
+            scan_logger.info(f"Best function result: {res.fun}")
+            
+            optimized_settings = {dim.name: val for dim, val in zip(space, res.x)}
+            
+            final_scan = scan_func(
+                meters=meters,
+                motors=[(name, [val]) for name, val in optimized_settings.items()],
+                metadata=response_metadata,
+                *args,
+                **{k: v for k, v in kwargs.items() if k not in ["motors", "meters"]}
+            )
+
+            final_scan["metadata"]["bayesian_optimization"] = {
+                "best_settings": optimized_settings,
+                "best_value": res.fun,
+            }
+            
+            return final_scan
+        return wrapper
+    return decorator
+    
+
+def add_noise(noise_level):
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            noisy_args = []
+            for arg in args:
+                noisy_args.append(random.gauss(arg, abs(arg) * noise_level) if isinstance(arg, (int, float)) else arg)
+            
+            noisy_kwargs = {}
+            for key, value in kwargs.items():
+                noisy_kwargs[key] = random.gauss(value, value * noise_level) if isinstance(value, (int, float)) else value
+            
+            result = func(*noisy_args, **noisy_kwargs)
+            return random.gauss(result, abs(result) * noise_level) if isinstance(result, (int, float)) else result
+        return wrapper
+    return decorator
+    

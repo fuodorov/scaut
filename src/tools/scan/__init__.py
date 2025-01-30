@@ -1,6 +1,8 @@
 import os
 import itertools
 from datetime import datetime
+from tqdm import tnrange, tqdm_notebook
+from tqdm.contrib import tzip
 
 from ...core import config as cfg
 from .utils import (
@@ -10,13 +12,13 @@ from .utils import (
     collect_meters_data,
     scan_logger,
 )
-from .decorators import response_measurements
+from .decorators import response_measurements, bayesian_optimization
 
 
 def scan(meters, motors, *, get_func, put_func, verify_motor=True, 
          max_retries=3, delay=0.1, tolerance=1e-6, 
          data={}, metadata={}, save=False, dirname=cfg.DATA_DIR,
-         callbacks=[], save_original_motor_values=True,
+         callback=[], save_original_motor_values=True, sample_size=cfg.SCAN_SAMPLE_SIZE,
 ):
     data = data or {}
     metadata = metadata or {}
@@ -40,6 +42,7 @@ def scan(meters, motors, *, get_func, put_func, verify_motor=True,
         "max_retries": max_retries,
         "delay": delay,
         "tolerance": tolerance,
+        "sample_size": sample_size,
     }
 
     motor_names, motor_values = [motor[0] for motor in motors], [motor[1] for motor in motors]
@@ -53,7 +56,7 @@ def scan(meters, motors, *, get_func, put_func, verify_motor=True,
         for step_index, combination in enumerate(all_combinations):
             scan_logger.info(f"Step {step_index + 1}/{len(all_combinations)}: Setting motor combination: {combination}")
             
-            for motor_name, motor_value in zip(motor_names, combination):
+            for motor_name, motor_value in tzip(motor_names, combination, desc="Set motor value"):
                 set_motor_value(
                     motor_name, motor_value,
                     get_func=get_func,
@@ -65,7 +68,7 @@ def scan(meters, motors, *, get_func, put_func, verify_motor=True,
                 )
                 scan_logger.info(f"Motor '{motor_name}' set to value {motor_value}")
 
-            meter_data = collect_meters_data(meters, get_func)
+            meter_data = collect_meters_data(meters, get_func, sample_size=sample_size)
             scan_logger.info(f"Collected data from meters: {meter_data}")
 
             for motor_name, motor_value in zip(motor_names, combination):
@@ -85,7 +88,7 @@ def scan(meters, motors, *, get_func, put_func, verify_motor=True,
             }
             metadata["steps"].append(step_metadata)
 
-            for callback in callbacks:
+            for callback in callback:
                 if callback is not None:
                     scan_logger.info(f"Starting callback {callback.__name__}")
                     callback({
@@ -103,7 +106,7 @@ def scan(meters, motors, *, get_func, put_func, verify_motor=True,
     finally:
         if save_original_motor_values:
             scan_logger.info("Restoring motors to their original values")
-            for motor_name, original_value in original_motor_values.items():
+            for motor_name, original_value in tqdm_notebook(original_motor_values.items(), desc="Set original motor value"):
                 try:
                     set_motor_value(
                         motor_name, original_value,
@@ -119,7 +122,7 @@ def scan(meters, motors, *, get_func, put_func, verify_motor=True,
                     scan_logger.error(f"Failed to restore motor '{motor_name}' to its original value: {e}")
                 
         metadata["scan_end_time"] = datetime.now().isoformat()
-        metadata["total_steps"] = len(metadata["steps"])
+        metadata["total_steps"] = len(metadata.get("steps", 0))
         
         if save:
             dirname = create_output_directory(dirname)
@@ -133,7 +136,13 @@ def scan(meters, motors, *, get_func, put_func, verify_motor=True,
     return {"data": data, "metadata": metadata}
 
 
-@response_measurements()
-def scan_response_matrix(*args, **kwargs):
+@response_measurements(targets={})
+def scan_response_measurements(*args, **kwargs):
     return scan(*args, **kwargs)
+
+
+@bayesian_optimization(targets={}, n_calls=cfg.SCAN_BAYESIAN_OPTIMIZATION_N_CALLS, random_state=cfg.SCAN_RANDOM_STATE)
+def scan_bayesian_optimization(*args, **kwargs):
+    return scan(*args, **kwargs)
+
     
