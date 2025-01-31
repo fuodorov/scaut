@@ -68,15 +68,8 @@ def plot_scan_data(step_data, step_count=cfg.SCAN_SHOW_LAST_STEP_NUMBERS):
     data = step_data["data"]
     metadata = step_data["metadata"]
 
-    motors = list(data.keys())
-    meters = set()
-
-    for motor_data in data.values():
-        for motor_value_data in motor_data.values():
-            meters.update(motor_value_data.keys())
-
-    meters = sorted(meters)
-
+    motors = metadata.get("motors", [])
+    meters = metadata.get("meters", [])
     steps = metadata.get("steps", [])[-step_count:]
     step_numbers = [step["step_index"] for step in steps]
     
