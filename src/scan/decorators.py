@@ -179,7 +179,7 @@ def bayesian_optimization(targets={}, n_calls=10, random_state=42):
             
             @use_named_args(space)
             def objective(**motor_settings):
-                scan_logger.debug(f"Текущие настройки моторов: {motor_settings}")
+                scan_logger.debug(f"Current motor settings: {motor_settings}")
                 calibrated_motors = [(name, [val]) for name, val in motor_settings.items()]
                 
                 scan_result = scan_func(
@@ -200,7 +200,7 @@ def bayesian_optimization(targets={}, n_calls=10, random_state=42):
                 for meter in meters:
                     delta[meter] = np.abs(measured_value.get(meter, 0.0))
                 
-                scan_logger.debug(f"Измеренные дельты метрик: {delta}")
+                scan_logger.debug(f"Measuring the delta of metrics: {delta}")
                 
                 target_delta = sum(np.abs(measured_value.get(meter, 0.0) - targets.get(meter, 0.0)) for meter in meters)
                 scan_logger.debug(f"Target delta ({targets}): {target_delta}")
