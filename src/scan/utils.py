@@ -5,6 +5,7 @@ import json
 import time
 import itertools
 import logging
+import numpy as np
 from tqdm import tnrange, tqdm_notebook
 
 import matplotlib.pyplot as plt
@@ -159,11 +160,7 @@ def plot_meters_data(step_data, step_count=cfg.SCAN_SHOW_LAST_STEP_NUMBERS):
     step_numbers = [step["step_index"] for step in steps]
     last_step_index = steps[-1]["step_index"]
     
-    meters = set()
-    for step in steps:
-        meters.update(step.get("meter_data", {}).keys())
-    meters = sorted(meters)
-
+    meters = metadata.get("meters", [])
     meter_indices = range(len(meters))
 
     cmap = cm.binary
@@ -182,7 +179,6 @@ def plot_meters_data(step_data, step_count=cfg.SCAN_SHOW_LAST_STEP_NUMBERS):
         marker = "." if step_index != last_step_index else "o"
         ax.plot(x_values, y_values, marker=marker, color=color)
 
-
     ax.set_xticks(meter_indices)
     ax.set_xticklabels(meters, rotation=45, ha='right')
 
@@ -192,8 +188,6 @@ def plot_meters_data(step_data, step_count=cfg.SCAN_SHOW_LAST_STEP_NUMBERS):
 
     cbar = fig.colorbar(scalar_map, ax=ax)
     cbar.set_label('Step Index')
-
-    # ax.legend(title="Steps", bbox_to_anchor=(1.05, 1), loc='upper left')
 
     plt.grid(True)
     plt.tight_layout()
@@ -208,11 +202,7 @@ def plot_motors_data(step_data, step_count=cfg.SCAN_SHOW_LAST_STEP_NUMBERS):
     step_numbers = [step["step_index"] for step in steps]
     last_step_index = steps[-1]["step_index"]
     
-    motors = set()
-    for step in steps:
-        motors.update(step.get("motor_values", {}).keys())
-    motors = sorted(motors)
-
+    motors = metadata.get("motors", [])
     motor_indices = range(len(motors))
 
     cmap = cm.binary
@@ -235,15 +225,50 @@ def plot_motors_data(step_data, step_count=cfg.SCAN_SHOW_LAST_STEP_NUMBERS):
     ax.set_xticklabels(motors, rotation=45, ha='right')
 
     ax.set_title("Motors Data Plot", fontsize=16)
-    ax.set_xlabel("M")
+    ax.set_xlabel("Motors")
     ax.set_ylabel("Motor Values")
 
     cbar = fig.colorbar(scalar_map, ax=ax)
     cbar.set_label('Step Index')
 
-    # ax.legend(title="Steps", bbox_to_anchor=(1.05, 1), loc='upper left')
-
     plt.grid(True)
+    plt.tight_layout()
+    plt.show()
+
+
+def plot_response_matrix(step_data):
+    metadata = step_data.get("metadata", {})
+    
+    if "response_matrix" not in metadata:
+        return
+        
+    motors = metadata.get("motors", [])
+    meters = metadata.get("meters", [])
+    response_matrix = np.array(metadata["response_matrix"])
+
+    fig, ax = plt.subplots(figsize=(10, 8))
+    
+    im = ax.imshow(response_matrix, aspect='auto', cmap='viridis')
+    cbar = fig.colorbar(im, ax=ax)
+    cbar.set_label('Response Value')
+
+    ax.set_title("Response Matrix Heatmap", fontsize=16)
+    ax.set_xlabel("Response Columns")
+    ax.set_ylabel("Response Rows")
+
+    num_rows, num_cols = response_matrix.shape
+    ax.set_xticks(range(num_cols))
+    ax.set_yticks(range(num_rows))
+    
+    ax.set_xticklabels(meters, rotation=45, ha='right')
+    ax.set_yticklabels(motors)
+
+    for i in range(num_rows):
+        for j in range(num_cols):
+            text = ax.text(j, i, f"{response_matrix[i, j]:.2f}",
+                           ha="center", va="center", color="w", fontsize=8)
+
+    ax.grid(False)
     plt.tight_layout()
     plt.show()
 
