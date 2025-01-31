@@ -8,7 +8,9 @@ import logging
 from tqdm import tnrange, tqdm_notebook
 
 import matplotlib.pyplot as plt
-from IPython.display import clear_output
+import matplotlib.colors as mcolors
+import matplotlib.cm as cm
+from IPython.display import clear_output as cell_clear_output
 import math
 import pandas as pd
 
@@ -76,7 +78,6 @@ def plot_scan_data(step_data, step_count=cfg.SCAN_SHOW_LAST_STEP_NUMBERS):
 
     steps = metadata.get("steps", [])[-step_count:]
     step_numbers = [step["step_index"] for step in steps]
-    clear_output(wait=True)
     
     num_motors = len(motors)
     num_meters = len(meters)
@@ -119,13 +120,11 @@ def plot_scan_data(step_data, step_count=cfg.SCAN_SHOW_LAST_STEP_NUMBERS):
                 fig.delaxes(axes[row][col])
 
     plt.tight_layout(rect=[0, 0, 1, 1])
-    plt.pause(0.1)
 
 
 def print_table_scan_data(step_data, step_count=cfg.SCAN_SHOW_LAST_STEP_NUMBERS):
     metadata = step_data["metadata"]
     steps = metadata.get("steps", [])[-step_count:]
-    clear_output(wait=True)
     
     table_data = []
     for step in steps[::-1]:
@@ -143,7 +142,6 @@ def print_table_scan_data(step_data, step_count=cfg.SCAN_SHOW_LAST_STEP_NUMBERS)
 def print_scan_data(step_data, step_count=cfg.SCAN_SHOW_LAST_STEP_NUMBERS):
     metadata = step_data["metadata"]
     steps = metadata.get("steps", [])[-step_count:]
-    clear_output(wait=True)
     
     print("=== Scan Data ===")
     for step in steps[::-1]:
@@ -151,3 +149,105 @@ def print_scan_data(step_data, step_count=cfg.SCAN_SHOW_LAST_STEP_NUMBERS):
         print(f"  Motor Values: {step.get("motor_values", {})}")
         print(f"  Meter Data: {step.get("meter_data", {})}")
         print("-" * 40)
+
+
+def plot_meters_data(step_data, step_count=cfg.SCAN_SHOW_LAST_STEP_NUMBERS):
+    data = step_data["data"]
+    metadata = step_data["metadata"]
+
+    steps = metadata.get("steps", [])[-step_count:]
+    step_numbers = [step["step_index"] for step in steps]
+    last_step_index = steps[-1]["step_index"]
+    
+    meters = set()
+    for step in steps:
+        meters.update(step.get("meter_data", {}).keys())
+    meters = sorted(meters)
+
+    meter_indices = range(len(meters))
+
+    cmap = cm.binary
+    norm = mcolors.Normalize(vmin=min(step_numbers)-1, vmax=max(step_numbers))
+    scalar_map = cm.ScalarMappable(norm=norm, cmap=cmap)
+    scalar_map.set_array([])
+
+    fig, ax = plt.subplots(figsize=(12, 6))
+
+    for step in steps:
+        step_index = step["step_index"]
+        meter_data = step.get("meter_data", {})
+        y_values = [meter_data.get(meter, 0) for meter in meters]
+        x_values = list(meter_indices)
+        color = scalar_map.to_rgba(step_index)        
+        marker = "." if step_index != last_step_index else "o"
+        ax.plot(x_values, y_values, marker=marker, color=color)
+
+
+    ax.set_xticks(meter_indices)
+    ax.set_xticklabels(meters, rotation=45, ha='right')
+
+    ax.set_title("Meters Data Plot", fontsize=16)
+    ax.set_xlabel("Meters")
+    ax.set_ylabel("Meter Values")
+
+    cbar = fig.colorbar(scalar_map, ax=ax)
+    cbar.set_label('Step Index')
+
+    # ax.legend(title="Steps", bbox_to_anchor=(1.05, 1), loc='upper left')
+
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()
+
+
+def plot_motors_data(step_data, step_count=cfg.SCAN_SHOW_LAST_STEP_NUMBERS):
+    data = step_data["data"]
+    metadata = step_data["metadata"]
+
+    steps = metadata.get("steps", [])[-step_count:]
+    step_numbers = [step["step_index"] for step in steps]
+    last_step_index = steps[-1]["step_index"]
+    
+    motors = set()
+    for step in steps:
+        motors.update(step.get("motor_values", {}).keys())
+    motors = sorted(motors)
+
+    motor_indices = range(len(motors))
+
+    cmap = cm.binary
+    norm = mcolors.Normalize(vmin=min(step_numbers)-1, vmax=max(step_numbers))
+    scalar_map = cm.ScalarMappable(norm=norm, cmap=cmap)
+    scalar_map.set_array([])
+
+    fig, ax = plt.subplots(figsize=(12, 6))
+
+    for step in steps:
+        step_index = step["step_index"]
+        motor_data = step.get("motor_values", {})
+        y_values = [motor_data.get(motor, 0) for motor in motors]
+        x_values = list(motor_indices)
+        color = scalar_map.to_rgba(step_index)
+        marker = "." if step_index != last_step_index else "o"
+        ax.plot(x_values, y_values, marker=marker, color=color)
+
+    ax.set_xticks(motor_indices)
+    ax.set_xticklabels(motors, rotation=45, ha='right')
+
+    ax.set_title("Motors Data Plot", fontsize=16)
+    ax.set_xlabel("M")
+    ax.set_ylabel("Motor Values")
+
+    cbar = fig.colorbar(scalar_map, ax=ax)
+    cbar.set_label('Step Index')
+
+    # ax.legend(title="Steps", bbox_to_anchor=(1.05, 1), loc='upper left')
+
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()
+
+
+def clear_output(*args):
+    cell_clear_output(wait=True)
+    

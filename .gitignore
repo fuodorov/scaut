@@ -172,3 +172,4 @@ cython_debug/
 
 #Elegant results
 /results/
+config.par
