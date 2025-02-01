@@ -1,7 +1,3 @@
-# SCAUT
-
-## Scan Accelerator Utils
-
-by [Vyacheslav Fedorov](https://fuodorov.github.io)
+# Scan Accelerator Utils (SCAUT)
 
 Utilities for experiments on accelerators
