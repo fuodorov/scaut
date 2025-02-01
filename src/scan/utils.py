@@ -170,7 +170,8 @@ def plot_meters_data(step_data, step_count=cfg.SCAN_SHOW_LAST_STEP_NUMBERS):
         x_values = list(meter_indices)
         color = scalar_map.to_rgba(step_index)        
         marker = "." if step_index != last_step_index else "o"
-        ax.plot(x_values, y_values, marker=marker, color=color)
+        linestyle = "--" if step_index != last_step_index else "-"
+        ax.plot(x_values, y_values, marker=marker, linestyle=linestyle, color=color)
 
     ax.set_xticks(meter_indices)
     ax.set_xticklabels(meters, rotation=45, ha='right')
@@ -212,7 +213,8 @@ def plot_motors_data(step_data, step_count=cfg.SCAN_SHOW_LAST_STEP_NUMBERS):
         x_values = list(motor_indices)
         color = scalar_map.to_rgba(step_index)
         marker = "." if step_index != last_step_index else "o"
-        ax.plot(x_values, y_values, marker=marker, color=color)
+        linestyle = "--" if step_index != last_step_index else "-"
+        ax.plot(x_values, y_values, marker=marker, linestyle=linestyle, color=color)
 
     ax.set_xticks(motor_indices)
     ax.set_xticklabels(motors, rotation=45, ha='right')
@@ -258,8 +260,7 @@ def plot_response_matrix(step_data):
 
     for i in range(num_rows):
         for j in range(num_cols):
-            text = ax.text(j, i, f"{response_matrix[i, j]:.2f}",
-                           ha="center", va="center", color="w", fontsize=8)
+            text = ax.text(j, i, f"{response_matrix[i, j]:.2f}", ha="center", va="center", color="w", fontsize=8)
 
     ax.grid(False)
     plt.tight_layout()
