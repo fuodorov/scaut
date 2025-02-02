@@ -21,8 +21,8 @@ def response_measurements(targets={}):
             scan_logger.debug(f"Motors list: {motor_names}")
             scan_logger.debug(f"Meters list: {meter_names}")
             
-            off_values = [np.min(m[1]) for m in motors]
-            on_values  = [np.max(m[1]) for m in motors]
+            off_values = [m[1][0] for m in motors]
+            on_values  = [m[1][-1] for m in motors]
 
             scan_logger.info("off_values and on_values for each motor defined.")
             scan_logger.debug(f"off_values={off_values}, on_values={on_values}")
@@ -141,17 +141,16 @@ def bayesian_optimization(targets={}, n_calls=10, random_state=42):
             
             for motor in motors:
                 name, values = motor
-                motor_bounds[name] = (min(values), max(values))
+                motor_bounds[name] = (values[0], values[-1])
             
             space = []
             motor_order = []
+            off_values = []
             for name in motor_names:
                 lb, ub = motor_bounds[name]
-                space.append(Real(lb, ub, name=name))
+                space.append(Real(-ub, ub, name=name))
+                off_values.append(lb)
                 motor_order.append(name)
-            
-            off_values = [motor_bounds[name][0] for name in motor_names]
-            on_values = [motor_bounds[name][1] for name in motor_names]
             
             scan_logger.info("Performing a basic scan with the initial values of the motors.")
             baseline_result = scan_func(

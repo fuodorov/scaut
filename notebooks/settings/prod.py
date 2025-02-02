@@ -1,6 +1,6 @@
 from .base import *
 
-MOTOR_RANGE = [-milli, milli]
+MOTOR_RANGE = [0, milli]
 
 MOTOR_NAMES = [  
     "MG-LA1:CLX1-I:Set", 

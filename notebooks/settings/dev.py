@@ -1,6 +1,6 @@
 from .base import *
 
-MOTOR_RANGE = [-milli, milli]
+MOTOR_RANGE = [0, milli]
 
 MOTOR_NAMES = [  
     "MG-LA1.CL1.HKICK",
@@ -19,6 +19,8 @@ MOTOR_NAMES = [
 
 MOTORS = [[motor_name, MOTOR_RANGE] for motor_name in MOTOR_NAMES]
 
+METER_RANGE = [-0.1, 0.1]
+
 METER_NAMES = [
     "BI-LA1.PK3.Cx", 
     "BI-LA1.PK3.Cy",
@@ -30,6 +32,6 @@ METER_NAMES = [
     "BI-LA4.PK6.Cy",
 ]
 
-METERS = METER_NAMES
+METERS = [[meter_name, METER_RANGE] for meter_name in METER_NAMES]
 
 DIRNAME_DATA = "data/dev"
