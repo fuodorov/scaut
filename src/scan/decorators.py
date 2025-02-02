@@ -141,7 +141,7 @@ def bayesian_optimization(targets={}, n_calls=10, random_state=42):
             
             for motor in motors:
                 name, values = motor
-                motor_bounds[name] = (np.random.choise(values), abs(max(values, key=abs)))
+                motor_bounds[name] = (np.random.choice(values), abs(max(values, key=abs)))
             
             space = []
             motor_order = []
