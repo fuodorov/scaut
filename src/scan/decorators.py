@@ -15,11 +15,11 @@ def response_measurements(targets={}):
             scan_logger.info("Calling response_measurements wrapper")
             
             motors, meters = kwargs.get("motors", []), kwargs.get("meters", [])
-            motor_names = [m[0] for m in motors]
-            n_motors, n_meters = len(motor_names), len(meters)
+            motor_names, meter_names = [m[0] for m in motors], [m[0] for m in meters]
+            n_motors, n_meters = len(motor_names), len(meter_names)
             
             scan_logger.debug(f"Motors list: {motor_names}")
-            scan_logger.debug(f"Meters list: {meters}")
+            scan_logger.debug(f"Meters list: {meter_names}")
             
             off_values = [np.min(m[1]) for m in motors]
             on_values  = [np.max(m[1]) for m in motors]
@@ -41,10 +41,10 @@ def response_measurements(targets={}):
                 first_motor, first_off = motor_names[0], off_values[0]
                 base_data = baseline_result["data"].get(first_motor, {})
                 if first_off in base_data:
-                    for meter_name in meters:
+                    for meter_name in meter_names:
                         baseline_meter_values[meter_name] = base_data[first_off].get(meter_name, 0.0)
                 else:
-                    for meter_name in meters:
+                    for meter_name in meter_names:
                         baseline_meter_values[meter_name] = 0.0
                         
             scan_logger.debug(f"baseline_meter_values={baseline_meter_values}")
@@ -70,7 +70,7 @@ def response_measurements(targets={}):
                 delta_motors_row[i] = (on_values[i] - off_values[i])
 
                 delta_meters_row = []
-                for meter_name in meters:
+                for meter_name in meter_names:
                     meas_val = this_data.get(meter_name, 0.0)
                     base_val = baseline_meter_values.get(meter_name, 0.0)
                     delta_meters_row.append(meas_val - base_val)
@@ -96,7 +96,7 @@ def response_measurements(targets={}):
             baseline_array = []
 
             scan_logger.info("Computing motor deltas to reach targets.")
-            for meter_name in meters:
+            for meter_name in meter_names:
                 target_values.append(targets.get(meter_name, 0.0))
                 baseline_array.append(baseline_meter_values[meter_name])
 
@@ -133,11 +133,11 @@ def bayesian_optimization(targets={}, n_calls=10, random_state=42):
             scan_logger.info("Launching the Bayesian optimization decorator.")
             
             motors, meters = kwargs.get("motors", []), kwargs.get("meters", [])
-            motor_names = [m[0] for m in motors]
+            motor_names, meter_names = [m[0] for m in motors], [m[0] for m in meters]
             motor_bounds = {}
             
             scan_logger.debug(f"List motors: {motor_names}")
-            scan_logger.debug(f"List meters: {meters}")
+            scan_logger.debug(f"List meters: {meter_names}")
             
             for motor in motors:
                 name, values = motor
@@ -169,10 +169,10 @@ def bayesian_optimization(targets={}, n_calls=10, random_state=42):
                 first_off = off_values[0]
                 base_data = baseline_result["data"].get(first_motor, {})
                 if first_off in base_data:
-                    for meter_name in meters:
+                    for meter_name in meter_names:
                         baseline_meter_values[meter_name] = base_data[first_off].get(meter_name, 0.0)
                 else:
-                    for meter_name in meters:
+                    for meter_name in meter_names:
                         baseline_meter_values[meter_name] = 0.0
                             
             scan_logger.debug(f"Base list meter values: {baseline_meter_values}")
@@ -193,16 +193,16 @@ def bayesian_optimization(targets={}, n_calls=10, random_state=42):
                 measured_value = {}
                 for motor, values in scan_result["data"].items():
                     for val, meter_data in values.items():
-                        for meter in meters:
+                        for meter in meter_names:
                             measured_value[meter] = meter_data.get(meter, 0.0)
                 
                 delta = {}
-                for meter in meters:
+                for meter in meter_names:
                     delta[meter] = np.abs(measured_value.get(meter, 0.0))
                 
                 scan_logger.debug(f"Measuring the delta of metrics: {delta}")
                 
-                target_delta = sum(np.abs(measured_value.get(meter, 0.0) - targets.get(meter, 0.0)) for meter in meters)
+                target_delta = sum(np.abs(measured_value.get(meter, 0.0) - targets.get(meter, 0.0)) for meter in meter_names)
                 scan_logger.debug(f"Target delta ({targets}): {target_delta}")
                 
                 return target_delta

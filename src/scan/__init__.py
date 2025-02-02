@@ -16,38 +16,36 @@ from .decorators import response_measurements, bayesian_optimization
 
 
 def scan(meters, motors, *, get_func, put_func, verify_motor=True, 
-         max_retries=3, delay=0.1, tolerance=1e-6, 
-         data={}, metadata={}, save=False, dirname=cfg.DATA_DIR,
-         callback=[], save_original_motor_values=True, sample_size=cfg.SCAN_SAMPLE_SIZE,
+         max_retries=cfg.SCAN_MAX_TRIES, delay=cfg.SCAN_DELAY, tolerance=cfg.SCAN_TOLERANCE, 
+         data=None, metadata=None, save=False, dirname=cfg.DATA_DIR,
+         callback=None, save_original_motor_values=True, sample_size=cfg.SCAN_SAMPLE_SIZE,
 ):
     data = data or {}
     metadata = metadata or {}
     original_motor_values = {}
-
+    motor_names, motor_ranges = [motor[0] for motor in motors], [motor[1] for motor in motors]
+    meter_names, meter_ranges = [meter[0] for meter in meters], [meter[1] for meter in meters]
+    all_combinations = list(itertools.product(*motor_ranges))
+    
     if save_original_motor_values:
-        for motor_name, _ in motors:
-            try:
-                original_motor_values[motor_name] = get_func(motor_name)
-            except Exception as e:
-                scan_logger.error(f"Error getting initial value for motor '{motor_name}': {e}")
-                raise RuntimeError(f"Failed to retrieve initial motor value for '{motor_name}'")
+        try:
+            original_motor_values = collect_meters_data(motor_names, get_func, sample_size=sample_size)
+        except Exception as e:
+            scan_logger.error(f"Error getting initial value for motor '{motor_name}': {e}")
+            raise RuntimeError(f"Failed to retrieve initial motor value for '{motor_name}'")
             
     metadata["scan_start_time"] = datetime.now().isoformat()
-    metadata["motors"] = [motor[0] for motor in motors]
+    metadata["motors"] = motor_names
     metadata["original_motor_values"] =  original_motor_values
-    metadata["meters"] = meters
+    metadata["meters"] = meter_names
     metadata["parameters"] = {
-        "save": save,
-        "verify_motor": verify_motor,
-        "max_retries": max_retries,
-        "delay": delay,
-        "tolerance": tolerance,
-        "sample_size": sample_size,
+        "save": save, 
+        "verify_motor": verify_motor, 
+        "max_retries": max_retries, 
+        "delay": delay, 
+        "tolerance": tolerance, 
+        "sample_size": sample_size
     }
-
-    motor_names, motor_values = [motor[0] for motor in motors], [motor[1] for motor in motors]
-    all_combinations = list(itertools.product(*motor_values))
-
     scan_logger.info("Starting scan process")
     scan_logger.info(f"Motors: {motor_names}")
     scan_logger.info(f"Motor value combinations: {all_combinations}")
@@ -56,19 +54,20 @@ def scan(meters, motors, *, get_func, put_func, verify_motor=True,
         for step_index, combination in enumerate(all_combinations):
             scan_logger.info(f"Step {step_index + 1}/{len(all_combinations)}: Setting motor combination: {combination}")
             
-            for motor_name, motor_value in tzip(motor_names, combination, desc="Set motor value"):
-                set_motor_value(
-                    motor_name, motor_value,
-                    get_func=get_func,
-                    put_func=put_func,
-                    verify_motor=verify_motor,
-                    max_retries=max_retries,
-                    delay=delay,
-                    tolerance=tolerance
-                )
+            for motor_name, motor_value in tzip(motor_names, combination, desc="Set value"):
+                set_motor_value(motor_name, motor_value, get_func, put_func, verify_motor, max_retries, delay, tolerance)
                 scan_logger.info(f"Motor '{motor_name}' set to value {motor_value}")
 
-            meter_data = collect_meters_data(meters, get_func, sample_size=sample_size)
+            meter_data = collect_meters_data(meter_names, get_func, sample_size=sample_size)
+            for meter_name, meter_range in zip(meter_names, meter_ranges):
+                measured_value = meter_data.get(meter_name)
+                lower_limit, upper_limit = min(meter_range), max(meter_range)
+                if measured_value < lower_limit or measured_value > upper_limit:
+                    raise ValueError(
+                        f"Device value '{meter_name}' = {measured_value} "
+                        f"outside the allowed range ({lower_limit}, {upper_limit})"
+                    )
+                    
             scan_logger.info(f"Collected data from meters: {meter_data}")
 
             for motor_name, motor_value in zip(motor_names, combination):
@@ -91,32 +90,23 @@ def scan(meters, motors, *, get_func, put_func, verify_motor=True,
             for call in callback:
                 if call is not None:
                     scan_logger.info(f"Starting callback {call.__name__}")
-                    call({
-                        "data": data,
-                        "metadata": metadata
-                    })
+                    call({"data": data, "metadata": metadata})
                     scan_logger.info(f"Callback {call.__name__} process completed")
 
     except KeyboardInterrupt as e:
         scan_logger.error("Scan process stopped by user")
+        raise e
         
     except Exception as e:
         scan_logger.exception(f"Error during scan process: {e}")
-    
+        raise e
+        
     finally:
         if save_original_motor_values:
             scan_logger.info("Restoring motors to their original values")
             for motor_name, original_value in tqdm_notebook(original_motor_values.items(), desc="Set original motor value"):
                 try:
-                    set_motor_value(
-                        motor_name, original_value,
-                        get_func=get_func,
-                        put_func=put_func,
-                        verify_motor=verify_motor,
-                        max_retries=max_retries,
-                        delay=delay,
-                        tolerance=tolerance
-                    )
+                    set_motor_value(motor_name, motor_value, get_func, put_func, verify_motor, max_retries, delay, tolerance)
                     scan_logger.info(f"Motor '{motor_name}' restored to its original value {original_value}")
                 except Exception as e:
                     scan_logger.error(f"Failed to restore motor '{motor_name}' to its original value: {e}")

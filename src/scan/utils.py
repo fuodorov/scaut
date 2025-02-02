@@ -55,7 +55,7 @@ def set_motor_value(motor_name, motor_value, get_func, put_func, verify_motor, m
 
 def collect_meters_data(meters, get_func, sample_size):
     data = {}
-    for meter in tqdm_notebook(meters, desc="Collect meter data"):
+    for meter in tqdm_notebook(meters, desc="Collect data"):
         values = []
         for val in tnrange(sample_size, desc="Fetch"):
             values.append(get_func(meter))
