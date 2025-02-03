@@ -8,8 +8,8 @@ from ..core import config as cfg
 from .utils import (
     create_output_directory,
     save_data,
-    set_motor_value,
-    collect_meters_data,
+    set_motors_values,
+    get_meters_data,
     scan_logger,
 )
 from .decorators import response_measurements, bayesian_optimization
@@ -19,6 +19,7 @@ def scan(meters, motors, *, get_func, put_func, verify_motor=True,
          max_retries=cfg.SCAN_MAX_TRIES, delay=cfg.SCAN_DELAY, tolerance=cfg.SCAN_TOLERANCE, 
          data=None, metadata=None, save=False, dirname=cfg.DATA_DIR,
          callback=None, save_original_motor_values=True, sample_size=cfg.SCAN_SAMPLE_SIZE,
+         parallel=cfg.SCAN_PARALLEL,
 ):
     data = data or {}
     metadata = metadata or {}
@@ -29,7 +30,7 @@ def scan(meters, motors, *, get_func, put_func, verify_motor=True,
     
     if save_original_motor_values:
         try:
-            original_motor_values = collect_meters_data(motor_names, get_func, sample_size=sample_size)
+            original_motor_values = get_meters_data(motor_names, get_func, sample_size, parallel)
         except Exception as e:
             scan_logger.error(f"Error getting initial value for motor '{motor_name}': {e}")
             raise RuntimeError(f"Failed to retrieve initial motor value for '{motor_name}'")
@@ -54,11 +55,8 @@ def scan(meters, motors, *, get_func, put_func, verify_motor=True,
         for step_index, combination in enumerate(all_combinations):
             scan_logger.info(f"Step {step_index + 1}/{len(all_combinations)}: Setting motor combination: {combination}")
             
-            for motor_name, motor_value in tzip(motor_names, combination, desc="Set value"):
-                set_motor_value(motor_name, motor_value, get_func, put_func, verify_motor, max_retries, delay, tolerance)
-                scan_logger.info(f"Motor '{motor_name}' set to value {motor_value}")
-
-            meter_data = collect_meters_data(meter_names, get_func, sample_size=sample_size)
+            set_motors_values(motor_names, combination, get_func, put_func, verify_motor, max_retries, delay, tolerance, parallel)
+            meter_data = get_meters_data(meter_names, get_func, sample_size, parallel)
             for meter_name, meter_range in zip(meter_names, meter_ranges):
                 measured_value = meter_data.get(meter_name)
                 lower_limit, upper_limit = min(meter_range), max(meter_range)
@@ -104,15 +102,10 @@ def scan(meters, motors, *, get_func, put_func, verify_motor=True,
     finally:
         if save_original_motor_values:
             scan_logger.info("Restoring motors to their original values")
-            for motor_name, original_value in tqdm_notebook(original_motor_values.items(), desc="Set original motor value"):
-                try:
-                    set_motor_value(motor_name, motor_value, get_func, put_func, verify_motor, max_retries, delay, tolerance)
-                    scan_logger.info(f"Motor '{motor_name}' restored to its original value {original_value}")
-                except Exception as e:
-                    scan_logger.error(f"Failed to restore motor '{motor_name}' to its original value: {e}")
+            set_motors_values(original_motor_values.keys(), original_motor_values.values(), get_func, put_func, verify_motor, max_retries, delay, tolerance, parallel)
                 
         metadata["scan_end_time"] = datetime.now().isoformat()
-        metadata["total_steps"] = len(metadata.get("steps", 0))
+        metadata["total_steps"] = len(metadata.get("steps", []))
         
         if save:
             dirname = create_output_directory(dirname)

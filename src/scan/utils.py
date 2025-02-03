@@ -7,6 +7,7 @@ import itertools
 import logging
 import numpy as np
 from tqdm import tnrange, tqdm_notebook
+import concurrent.futures
 
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
@@ -53,15 +54,71 @@ def set_motor_value(motor_name, motor_value, get_func, put_func, verify_motor, m
         return True
 
 
-def collect_meters_data(meters, get_func, sample_size):
+def set_motors_values(motor_names, combination, get_func, put_func, verify_motor,
+                      max_retries, delay, tolerance, parallel=False):
+    if parallel:
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            futures = {
+                executor.submit(
+                    set_motor_value,
+                    motor_name,
+                    motor_value,
+                    get_func,
+                    put_func,
+                    verify_motor,
+                    max_retries,
+                    delay,
+                    tolerance,
+                ): motor_name
+                for motor_name, motor_value in zip(motor_names, combination)
+            }
+            for future in tqdm_notebook(
+                concurrent.futures.as_completed(futures),
+                total=len(futures),
+                desc="Set motor values"
+            ):
+                future.result()
+    else:
+        for motor_name, motor_value in tqdm_notebook(
+            zip(motor_names, combination),
+            total=len(motor_names),
+            desc="Set motor values"
+        ):
+            set_motor_value(motor_name, motor_value, get_func, put_func,
+                            verify_motor, max_retries, delay, tolerance)
+            scan_logger.info(f"Motor '{motor_name}' set to value {motor_value}")
+            
+
+def get_meter_data(meter, get_func, sample_size):
+    values = []
+    for _ in range(sample_size):
+        values.append(get_func(meter))
+    avg = sum(values) / sample_size
+    scan_logger.debug(f"Data collected for {meter}: {avg}")
+    return meter, avg
+
+
+def get_meters_data(meters, get_func, sample_size, parallel=False):
     data = {}
-    for meter in tqdm_notebook(meters, desc="Collect data"):
-        values = []
-        for val in tnrange(sample_size, desc="Fetch"):
-            values.append(get_func(meter))
-        data[meter] = sum(values) / sample_size
-        scan_logger.debug(f"Data collected for {meter}: {val}")
+    if parallel:
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            futures = {
+                executor.submit(get_meter_data, meter, get_func, sample_size): meter
+                for meter in meters
+            }
+            for future in tqdm_notebook(
+                concurrent.futures.as_completed(futures),
+                total=len(futures),
+                desc="Collect data"
+            ):
+                meter, avg = future.result()
+                data[meter] = avg
+    else:
+        for meter in tqdm_notebook(meters, desc="Collect data"):
+            meter, avg = get_meter_data(meter, get_func, sample_size)
+            data[meter] = avg
     return data
+
 
 
 def plot_scan_data(step_data, step_count=cfg.SCAN_SHOW_LAST_STEP_NUMBERS):

@@ -28,6 +28,8 @@ SCAN_DELAY = os.environ.get("SCAN_DELAY", 0.1)
 
 SCAN_TOLERANCE = os.environ.get("SCAN_TOLERANCE", 1e-3)
 
+SCAN_PARALLEL = os.environ.get("SCAN_PARALLEL", False)
+
 ELEGANT_SIMULATION_DIR = os.path.abspath(os.environ.get("ELEGANT_SIMULATION_DIR", "elegant"))
 
 ELEGANT_SIMULATION_CONFIG_FILE = os.environ.get("ELEGANT_SIMULATION_CONFIG_FILE", os.path.join(ELEGANT_SIMULATION_DIR, "config.ele"))
