@@ -85,25 +85,26 @@ def set_motors_values(motor_names, combination, get_func, put_func, verify_motor
             desc="Set motor values"
         ):
             set_motor_value(motor_name, motor_value, get_func, put_func,
-                            verify_motor, max_retries, delay, tolerance)
+                    verify_motor, max_retries, delay, tolerance)
             scan_logger.info(f"Motor '{motor_name}' set to value {motor_value}")
             
 
-def get_meter_data(meter, get_func, sample_size):
+def get_meter_data(meter, get_func, sample_size, delay):
     values = []
     for _ in range(sample_size):
         values.append(get_func(meter))
+        time.sleep(delay)
     avg = sum(values) / sample_size
     scan_logger.debug(f"Data collected for {meter}: {avg}")
     return meter, avg
 
 
-def get_meters_data(meters, get_func, sample_size, parallel=False):
+def get_meters_data(meters, get_func, sample_size, delay=0, parallel=False):
     data = {}
     if parallel:
         with concurrent.futures.ThreadPoolExecutor() as executor:
             futures = {
-                executor.submit(get_meter_data, meter, get_func, sample_size): meter
+                executor.submit(get_meter_data, meter, get_func, sample_size, delay): meter
                 for meter in meters
             }
             for future in tqdm_notebook(
@@ -115,7 +116,7 @@ def get_meters_data(meters, get_func, sample_size, parallel=False):
                 data[meter] = avg
     else:
         for meter in tqdm_notebook(meters, desc="Collect data"):
-            meter, avg = get_meter_data(meter, get_func, sample_size)
+            meter, avg = get_meter_data(meter, get_func, sample_size, delay)
             data[meter] = avg
     return data
 

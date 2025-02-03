@@ -30,7 +30,7 @@ def scan(meters, motors, *, get_func, put_func, verify_motor=True,
     
     if save_original_motor_values:
         try:
-            original_motor_values = get_meters_data(motor_names, get_func, sample_size, parallel)
+            original_motor_values = get_meters_data(motor_names, get_func, sample_size, delay, parallel)
         except Exception as e:
             scan_logger.error(f"Error getting initial value for motor '{motor_name}': {e}")
             raise RuntimeError(f"Failed to retrieve initial motor value for '{motor_name}'")
@@ -56,7 +56,7 @@ def scan(meters, motors, *, get_func, put_func, verify_motor=True,
             scan_logger.info(f"Step {step_index + 1}/{len(all_combinations)}: Setting motor combination: {combination}")
             
             set_motors_values(motor_names, combination, get_func, put_func, verify_motor, max_retries, delay, tolerance, parallel)
-            meter_data = get_meters_data(meter_names, get_func, sample_size, parallel)
+            meter_data = get_meters_data(meter_names, get_func, sample_size, delay, parallel)
             for meter_name, meter_range in zip(meter_names, meter_ranges):
                 measured_value = meter_data.get(meter_name)
                 lower_limit, upper_limit = min(meter_range), max(meter_range)
