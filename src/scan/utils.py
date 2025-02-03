@@ -196,9 +196,9 @@ def print_scan_data(step_data, step_count=cfg.SCAN_SHOW_LAST_STEP_NUMBERS):
     
     print("=== Scan Data ===")
     for step in steps[::-1]:
-        print(f"Step {step.get("step_index", None)}:")
-        print(f"  Motor Values: {step.get("motor_values", {})}")
-        print(f"  Meter Data: {step.get("meter_data", {})}")
+        print(f"Step {step.get('step_index', None)}:")
+        print(f"  Motor Values: {step.get('motor_values', {})}")
+        print(f"  Meter Data: {step.get('meter_data', {})}")
         print("-" * 40)
 
 
