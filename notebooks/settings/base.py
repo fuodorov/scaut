@@ -1,15 +1,5 @@
 from scipy.constants import milli
 
-ELEMENT_X_POSITION_ERROR = milli
-
-ELEMENT_Y_POSITION_ERROR = milli
-
-ELEMENT_Z_POSITION_ERROR = milli
-
-ELEMENT_ROTATION_ERROR = milli
-
-ELEMENT_FIELD_ERROR = milli
-
 NOISE_LEVEL = 0.25
 
 VERIFY_MOTOR = True
