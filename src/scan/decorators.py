@@ -1,5 +1,6 @@
 import numpy as np
 import random
+import time
 from functools import wraps
 from skopt import gp_minimize
 from skopt.space import Real, Integer
@@ -61,7 +62,8 @@ def response_measurements(targets={}):
                     meters=meters,
                     motors=cal_motors,
                     metadata=response_metadata,
-                    **{k: v for k, v in kwargs.items() if k not in ["motors","meters"]}
+                    save=False,
+                    **{k: v for k, v in kwargs.items() if k not in ["motors","meters", "save"]}
                 )
                 response_metadata.update(cal_result["metadata"])
                 this_data = cal_result["data"].get(mn, {}).get(on_values[i], {})
@@ -185,8 +187,9 @@ def bayesian_optimization(targets={}, n_calls=10, random_state=42):
                     meters=meters,
                     motors=calibrated_motors,
                     metadata=response_metadata,
+                    save=False,
                     *args,
-                    **{k: v for k, v in kwargs.items() if k not in ["motors", "meters"]}
+                    **{k: v for k, v in kwargs.items() if k not in ["motors", "meters", "save"]}
                 )
                 
                 measured_value = {}
@@ -219,7 +222,10 @@ def bayesian_optimization(targets={}, n_calls=10, random_state=42):
             scan_logger.info(f"Best function result: {res.fun}")
             
             optimized_settings = {dim.name: val for dim, val in zip(space, res.x)}
-            
+            response_metadata["bayesian_optimization"] = {
+                "best_settings": optimized_settings,
+                "best_value": res.fun,
+            }
             final_scan = scan_func(
                 meters=meters,
                 motors=[(name, [val]) for name, val in optimized_settings.items()],
@@ -228,15 +234,62 @@ def bayesian_optimization(targets={}, n_calls=10, random_state=42):
                 **{k: v for k, v in kwargs.items() if k not in ["motors", "meters"]}
             )
 
-            final_scan["metadata"]["bayesian_optimization"] = {
-                "best_settings": optimized_settings,
-                "best_value": res.fun,
-            }
-            
             return final_scan
         return wrapper
     return decorator
     
+
+def watch_measurements(observation_time=None):
+    def decorator(scan_func):
+        @wraps(scan_func)
+        def wrapper(*args, **kwargs):
+            scan_logger.info("Calling watch_measurements wrapper")
+            start = time.time()
+            end = start + observation_time if observation_time is not None else None
+            response_metadata = {}
+            final_scan = {}
+            
+            while True:
+                if end is not None and time.time() >= end:
+                    break
+                    
+                try:
+                    motors, meters = kwargs.get("motors", []), kwargs.get("meters", [])
+                    get_func, put_func = kwargs.get("get_func", []), kwargs.get("put_func", [])
+                    motor_names, meter_names = [m[0] for m in motors], [m[0] for m in meters]
+                    n_motors, n_meters = len(motor_names), len(meter_names)
+                    
+                    scan_logger.debug(f"Motors list: {motor_names}")
+                    scan_logger.debug(f"Meters list: {meter_names}")
+                    
+                    on_values  = [get_func(name) for name in motor_names]
+        
+                    scan_logger.debug(f"on_values={on_values}")
+        
+                    scan_logger.info("Performing scan...")
+                    final_scan = scan_func(
+                        meters=meters,
+                        motors=[(motor_names[i], [on_values[i]]) for i in range(n_motors)],
+                        metadata=response_metadata,
+                        save=False,
+                        **{k: v for k, v in kwargs.items() if k not in ["motors","meters","save"]}
+                    )
+                    response_metadata = final_scan.get("metadata", {})
+                    
+                except KeyboardInterrupt as e:
+                    scan_logger.error("Scan process stopped by user")
+                    raise e
+                finally:
+                    final_scan = scan_func(
+                        meters=meters,
+                        motors=[(motor_names[i], [on_values[i]]) for i in range(n_motors)],
+                        metadata=response_metadata,
+                        **{k: v for k, v in kwargs.items() if k not in ["motors","meters"]}
+                    )
+            return final_scan
+        return wrapper
+    return decorator
+
 
 def add_noise(noise_level):
     def decorator(func):

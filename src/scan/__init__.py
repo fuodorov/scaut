@@ -12,7 +12,7 @@ from .utils import (
     get_meters_data,
     scan_logger,
 )
-from .decorators import response_measurements, bayesian_optimization
+from .decorators import response_measurements, bayesian_optimization, watch_measurements
 
 
 def scan(meters, motors, *, get_func, put_func, verify_motor=True, 
@@ -120,12 +120,18 @@ def scan(meters, motors, *, get_func, put_func, verify_motor=True,
 
 
 @response_measurements(targets={})
-def scan_response_measurements(*args, **kwargs):
+def reply(*args, **kwargs):
     return scan(*args, **kwargs)
 
 
 @bayesian_optimization(targets={}, n_calls=cfg.SCAN_BAYESIAN_OPTIMIZATION_N_CALLS, random_state=cfg.SCAN_RANDOM_STATE)
-def scan_bayesian_optimization(*args, **kwargs):
+def optimize(*args, **kwargs):
     return scan(*args, **kwargs)
+
+
+@watch_measurements(observation_time=None)
+def watch(*args, **kwargs):
+    return scan(*args, **kwargs)
+
 
     
