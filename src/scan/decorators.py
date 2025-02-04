@@ -278,7 +278,7 @@ def watch_measurements(observation_time=None):
                     
                 except KeyboardInterrupt as e:
                     scan_logger.error("Scan process stopped by user")
-                    raise e
+                    break
                 finally:
                     final_scan = scan_func(
                         meters=meters,
