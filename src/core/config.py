@@ -30,6 +30,8 @@ SCAN_TOLERANCE = os.environ.get("SCAN_TOLERANCE", 1e-3)
 
 SCAN_PARALLEL = os.environ.get("SCAN_PARALLEL", False)
 
+SCAN_REPEAT = os.environ.get("SCAN_REPEAT", 1)
+
 ELEGANT_SIMULATION_DIR = os.path.abspath(os.environ.get("ELEGANT_SIMULATION_DIR", "elegant"))
 
 ELEGANT_SIMULATION_CONFIG_FILE = os.environ.get("ELEGANT_SIMULATION_CONFIG_FILE", os.path.join(ELEGANT_SIMULATION_DIR, "config.ele"))

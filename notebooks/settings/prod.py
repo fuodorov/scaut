@@ -23,6 +23,8 @@ SAVE_ORIGINAL_MOTOR_VALUES = True
 
 PARALLEL = False
 
+REPEAT = 1
+
 GET_FUNC = caget
 
 PUT_FUNC = caput
