@@ -9,7 +9,7 @@ from skopt.utils import use_named_args
 from .utils import scan_logger
 from ..core import config as cfg
 
-def response_measurements(targets={}):
+def response_measurements(targets={}, rcond=1e-15, inverse_mode=True):
     def decorator(scan_func):
         @wraps(scan_func)
         def wrapper(*args, **kwargs):
@@ -32,7 +32,8 @@ def response_measurements(targets={}):
             baseline_result = scan_func(
                 meters=meters,
                 motors=[(motor_names[i], [off_values[i]]) for i in range(n_motors)],
-                **{k: v for k, v in kwargs.items() if k not in ["motors","meters"]}
+                save=False,
+                **{k: v for k, v in kwargs.items() if k not in ["motors","meters","save"]}
             )
             response_metadata = baseline_result["metadata"]
 
@@ -49,51 +50,57 @@ def response_measurements(targets={}):
                         baseline_meter_values[meter_name] = 0.0
                         
             scan_logger.debug(f"baseline_meter_values={baseline_meter_values}")
-            motors_matrix, measurements_matrix, measurements_matrix = [], [], []
-
-            scan_logger.info("Performing individual scans for each motor to build the response matrix.")
-            for i, mn in enumerate(motor_names):
-                scan_logger.debug(f"Performing scan for motor {mn}, on_value={on_values[i]}")
-                cal_motors = []
-                for j, other_mn in enumerate(motor_names):
-                    cal_motors.append((other_mn, [on_values[j] if j == i else off_values[j]]))
-
-                cal_result = scan_func(
-                    meters=meters,
-                    motors=cal_motors,
-                    metadata=response_metadata,
-                    save=False,
-                    **{k: v for k, v in kwargs.items() if k not in ["motors","meters", "save"]}
-                )
-                response_metadata.update(cal_result["metadata"])
-                this_data = cal_result["data"].get(mn, {}).get(on_values[i], {})
-
-                delta_motors_row = [0.0]*n_motors
-                delta_motors_row[i] = (on_values[i] - off_values[i])
-
-                delta_meters_row = []
-                for meter_name in meter_names:
-                    meas_val = this_data.get(meter_name, 0.0)
-                    base_val = baseline_meter_values.get(meter_name, 0.0)
-                    delta_meters_row.append(meas_val - base_val)
-
-                motors_matrix.append(delta_motors_row)
-                measurements_matrix.append(delta_meters_row)
-
-            motors_matrix = np.array(motors_matrix)              # shape: (n_motors, n_motors)
-            measurements_matrix = np.array(measurements_matrix)  # shape: (n_motors, n_meters)
+            on_values_all = [np.array(on_values), -np.array(on_values)] if inverse_mode else [np.array(on_values)]
+            response_matrices = []
             
-            scan_logger.debug(f"motors_matrix:\n{motors_matrix}")
-            scan_logger.debug(f"measurements_matrix:\n{measurements_matrix}")
-            scan_logger.info("Computing the response matrix.")
+            for on_values in on_values_all:
+                motors_matrix, measurements_matrix = [], []
+    
+                scan_logger.info("Performing individual scans for each motor to build the response matrix.")
+                for i, mn in enumerate(motor_names):
+                    scan_logger.debug(f"Performing scan for motor {mn}, on_value={on_values[i]}")
+                    cal_motors = []
+                    for j, other_mn in enumerate(motor_names):
+                        cal_motors.append((other_mn, [on_values[j] if j == i else off_values[j]]))
+    
+                    cal_result = scan_func(
+                        meters=meters,
+                        motors=cal_motors,
+                        metadata=response_metadata,
+                        save=False,
+                        **{k: v for k, v in kwargs.items() if k not in ["motors","meters", "save"]}
+                    )
+                    response_metadata.update(cal_result["metadata"])
+                    this_data = cal_result["data"].get(mn, {}).get(on_values[i], {})
+    
+                    delta_motors_row = [0.0]*n_motors
+                    delta_motors_row[i] = (on_values[i] - off_values[i])
+    
+                    delta_meters_row = []
+                    for meter_name in meter_names:
+                        meas_val = this_data.get(meter_name, 0.0)
+                        base_val = baseline_meter_values.get(meter_name, 0.0)
+                        delta_meters_row.append(meas_val - base_val)
+    
+                    motors_matrix.append(delta_motors_row)
+                    measurements_matrix.append(delta_meters_row)
+    
+                motors_matrix = np.array(motors_matrix)              # shape: (n_motors, n_motors)
+                measurements_matrix = np.array(measurements_matrix)  # shape: (n_motors, n_meters)
+                
+                scan_logger.debug(f"motors_matrix:\n{motors_matrix}")
+                scan_logger.debug(f"measurements_matrix:\n{measurements_matrix}")
+                scan_logger.info("Computing the response matrix.")
+                
+                pseudo_inverse = np.linalg.pinv(motors_matrix, rcond=rcond)         # (n_motors, n_motors)
+                response_matrix = pseudo_inverse @ measurements_matrix  # (n_motors, n_meters)
+                scan_logger.debug(f"response_matrix:\n{response_matrix}")
+                response_matrices.append(response_matrix)
+
+            avg_response_matrix = sum(response_matrices) / len(response_matrices)
             
-            pseudo_inverse = np.linalg.pinv(motors_matrix)         # (n_motors, n_motors)
-            response_matrix = pseudo_inverse @ measurements_matrix  # (n_motors, n_meters)
-            scan_logger.debug(f"response_matrix:\n{response_matrix}")
-            response_metadata["motors_matrix"] = motors_matrix.tolist()
-            response_metadata["measurements_matrix"] = measurements_matrix.tolist()
-            response_metadata["response_matrix"] = response_matrix.tolist()
-            
+            response_metadata["response_matrix"] = avg_response_matrix.tolist()
+
             target_values = []
             baseline_array = []
 
@@ -106,8 +113,8 @@ def response_measurements(targets={}):
             baseline_arr = np.array(baseline_array)  # (n_meters,)
             delta_meter = target_array - baseline_arr
 
-            R = response_matrix
-            R_pinv = np.linalg.pinv(R)      # (n_meters, n_motors)
+            R = avg_response_matrix
+            R_pinv = np.linalg.pinv(R, rcond=rcond)      # (n_meters, n_motors)
             delta_motors = delta_meter @ R_pinv  # (n_motors,)
 
             final_positions = [off_values[i] + delta_motors[i] for i in range(n_motors)]

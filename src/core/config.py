@@ -14,7 +14,7 @@ DATA_DIR = os.path.abspath(os.environ.get("DATA_DIR", "data"))
 
 os.makedirs(DATA_DIR, exist_ok=True)
 
-SCAN_SHOW_LAST_STEP_NUMBERS =  os.environ.get("SCAN_SHOW_LAST_STEP_NUMBERS", 10)
+SCAN_SHOW_LAST_STEP_NUMBERS =  os.environ.get("SCAN_SHOW_LAST_STEP_NUMBERS", 5)
 
 SCAN_SAMPLE_SIZE = os.environ.get("SCAN_SAMPLE_SIZE", 10)
 
@@ -31,6 +31,8 @@ SCAN_TOLERANCE = os.environ.get("SCAN_TOLERANCE", 1e-3)
 SCAN_PARALLEL = os.environ.get("SCAN_PARALLEL", False)
 
 SCAN_REPEAT = os.environ.get("SCAN_REPEAT", 1)
+
+SCAN_RCOND = os.environ.get("SCAN_RCOND", 1e-15)
 
 ELEGANT_SIMULATION_DIR = os.path.abspath(os.environ.get("ELEGANT_SIMULATION_DIR", "elegant"))
 

@@ -119,7 +119,7 @@ def scan(meters, motors, *, get_func, put_func, verify_motor=True,
     return {"data": data, "metadata": metadata}
 
 
-@response_measurements(targets={})
+@response_measurements(targets={}, rcond=cfg.SCAN_RCOND)
 def reply(*args, **kwargs):
     return scan(*args, **kwargs)
 
