@@ -7,7 +7,7 @@ from .base import *
 from src.elegant import eleget, eleput
 
 # GENERAL
-NOISE_LEVEL = 0.25
+NOISE_LEVEL = 0.5
 
 VERIFY_MOTOR = True
 

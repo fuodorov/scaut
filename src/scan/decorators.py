@@ -50,7 +50,7 @@ def response_measurements(targets={}, rcond=1e-15, inverse_mode=True):
                         baseline_meter_values[meter_name] = 0.0
                         
             scan_logger.debug(f"baseline_meter_values={baseline_meter_values}")
-            on_values_all = [np.array(on_values), -np.array(on_values)] if inverse_mode else [np.array(on_values)]
+            on_values_all = [np.array(off_values)+np.array(on_values), np.array(off_values)-np.array(on_values)] if inverse_mode else [np.array(off_values)+np.array(on_values)]
             response_matrices = []
             
             for on_values in on_values_all:
