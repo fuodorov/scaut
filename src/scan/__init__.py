@@ -13,6 +13,7 @@ from .utils import (
     scan_logger,
 )
 from .decorators import response_measurements, bayesian_optimization, watch_measurements
+from .exceptions import ScanMeterValueError
 
 
 def scan(meters, motors, *, get_func, put_func, verify_motor=True, 
@@ -61,7 +62,7 @@ def scan(meters, motors, *, get_func, put_func, verify_motor=True,
                 measured_value = meter_data.get(meter_name)
                 lower_limit, upper_limit = min(meter_range), max(meter_range)
                 if measured_value < lower_limit or measured_value > upper_limit:
-                    raise ValueError(
+                    raise ScanMeterValueError(
                         f"Device value '{meter_name}' = {measured_value} "
                         f"outside the allowed range ({lower_limit}, {upper_limit})"
                     )
@@ -119,12 +120,12 @@ def scan(meters, motors, *, get_func, put_func, verify_motor=True,
     return {"data": data, "metadata": metadata}
 
 
-@response_measurements(targets={}, rcond=cfg.SCAN_RCOND)
+@response_measurements(targets={}, max_attempts=cfg.SCAN_RESPONSE_MEASUREMENTS_MAX_ATTEMPTS, rcond=cfg.SCAN_RESPONSE_MEASUREMENTS_RCOND)
 def reply(*args, **kwargs):
     return scan(*args, **kwargs)
 
 
-@bayesian_optimization(targets={}, n_calls=cfg.SCAN_BAYESIAN_OPTIMIZATION_N_CALLS, random_state=cfg.SCAN_RANDOM_STATE)
+@bayesian_optimization(targets={}, penalty=cfg.SCAN_BAYESIAN_OPTIMIZATION_PENALTY, n_calls=cfg.SCAN_BAYESIAN_OPTIMIZATION_N_CALLS, random_state=cfg.SCAN_RANDOM_STATE)
 def optimize(*args, **kwargs):
     return scan(*args, **kwargs)
 
