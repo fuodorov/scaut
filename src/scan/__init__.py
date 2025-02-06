@@ -20,7 +20,7 @@ def scan(meters, motors, checks=[], *, get_func, put_func, verify_motor=True,
          max_retries=cfg.SCAN_MAX_TRIES, delay=cfg.SCAN_DELAY, tolerance=cfg.SCAN_TOLERANCE, 
          data=None, metadata=None, save=False, dirname=cfg.DATA_DIR,
          callback=[], save_original_motor_values=True, sample_size=cfg.SCAN_SAMPLE_SIZE,
-         parallel=cfg.SCAN_PARALLEL, repeat=cfg.SCAN_REPEAT,
+         parallel=cfg.SCAN_PARALLEL, repeat=cfg.SCAN_REPEAT, strict_check=False,
 ):
     data = data or {}
     metadata = metadata or {}
@@ -60,9 +60,9 @@ def scan(meters, motors, checks=[], *, get_func, put_func, verify_motor=True,
         for step_index, combination in enumerate(all_combinations*repeat):
             scan_logger.info(f"Step {step_index + 1}/{len(all_combinations)}: Setting motor combination: {combination}")
             set_motors_values(motor_names, combination, get_func, put_func, verify_motor, max_retries, delay, tolerance, parallel)
-            check_data = get_meters_data(check_names, get_func, sample_size, delay, parallel, check_ranges)
+            check_data = get_meters_data(check_names, get_func, sample_size, delay, parallel, check_ranges, strict_check)
             scan_logger.info(f"Collected data from checks: {check_data}")
-            meter_data = get_meters_data(meter_names, get_func, sample_size, delay, parallel, meter_ranges)
+            meter_data = get_meters_data(meter_names, get_func, sample_size, delay, parallel, meter_ranges, strict_check)
             scan_logger.info(f"Collected data from meters: {meter_data}")
 
             for motor_name, motor_value in zip(motor_names, combination):
@@ -83,12 +83,6 @@ def scan(meters, motors, checks=[], *, get_func, put_func, verify_motor=True,
             }
             metadata["steps"].append(step_metadata)
 
-            for call in callback:
-                if call is not None:
-                    scan_logger.info(f"Starting callback {call.__name__}")
-                    call({"data": data, "metadata": metadata})
-                    scan_logger.info(f"Callback {call.__name__} process completed")
-
     except KeyboardInterrupt as e:
         scan_logger.error("Scan process stopped by user")
         raise e
@@ -98,6 +92,13 @@ def scan(meters, motors, checks=[], *, get_func, put_func, verify_motor=True,
         raise e
         
     finally:
+        
+        for call in callback:
+            if call is not None:
+                scan_logger.info(f"Starting callback {call.__name__}")
+                call({"data": data, "metadata": metadata})
+                scan_logger.info(f"Callback {call.__name__} process completed")
+                    
         if save_original_motor_values:
             scan_logger.info("Restoring motors to their original values")
             set_motors_values(original_motor_values.keys(), original_motor_values.values(), get_func, put_func, verify_motor, max_retries, delay, tolerance, parallel)
@@ -122,7 +123,7 @@ def reply(*args, **kwargs):
     return scan(*args, **kwargs)
 
 
-@bayesian_optimization(targets={}, penalty=cfg.SCAN_BAYESIAN_OPTIMIZATION_PENALTY, n_calls=cfg.SCAN_BAYESIAN_OPTIMIZATION_N_CALLS, random_state=cfg.SCAN_RANDOM_STATE)
+@bayesian_optimization(targets={}, penalty=cfg.SCAN_BAYESIAN_OPTIMIZATION_PENALTY, n_calls=cfg.SCAN_BAYESIAN_OPTIMIZATION_N_CALLS, random_state=cfg.SCAN_RANDOM_STATE, minimize=cfg.SCAN_BAYESIAN_OPTIMIZATION_MINIMIZE)
 def optimize(*args, **kwargs):
     return scan(*args, **kwargs)
 

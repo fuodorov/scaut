@@ -167,7 +167,7 @@ def response_measurements(targets={}, max_attempts=10, num_singular_values=5, rc
     return decorator
 
 
-def bayesian_optimization(targets={}, n_calls=10, random_state=42, penalty=10):
+def bayesian_optimization(targets={}, n_calls=10, random_state=42, penalty=10, minimize=True):
     def decorator(scan_func):
         @wraps(scan_func)
         def wrapper(*args, **kwargs):
@@ -250,7 +250,7 @@ def bayesian_optimization(targets={}, n_calls=10, random_state=42, penalty=10):
                 target_delta = sum(np.abs(measured_value.get(meter, 0.0) - targets.get(meter, 0.0)) for meter in meter_names)
                 scan_logger.debug(f"Target delta ({targets}): {target_delta}")
                 
-                return target_delta
+                return target_delta if minimize else target_delta
             
             scan_logger.info("The beginning of Bayesian optimization.")
             res = gp_minimize(
@@ -320,7 +320,7 @@ def watch_measurements(observation_time=None):
                     )
                     response_metadata = final_scan.get("metadata", {})
                 except ScanMeterValueError as e:
-                    scan_logger.warning(e)
+                    # scan_logger.warning(e)
                     continue
                 except KeyboardInterrupt as e:
                     scan_logger.error("Scan process stopped by user")

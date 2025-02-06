@@ -102,7 +102,7 @@ def get_meter_data(meter, get_func, sample_size, delay):
     return meter, avg
 
 
-def get_meters_data(meters, get_func, sample_size, delay=0, parallel=False, limits=None):
+def get_meters_data(meters, get_func, sample_size, delay=0, parallel=False, limits=None, strict_check=False):
     data = {}
     if parallel:
         with concurrent.futures.ThreadPoolExecutor() as executor:
@@ -128,10 +128,11 @@ def get_meters_data(meters, get_func, sample_size, delay=0, parallel=False, limi
             measured_value = data.get(meter_name)
             lower_limit, upper_limit = min(meter_range), max(meter_range)
             if measured_value < lower_limit or measured_value > upper_limit:
-                raise ScanMeterValueError(
-                    f"Device value '{meter_name}' = {measured_value} "
-                    f"outside the allowed range ({lower_limit}, {upper_limit})"
-                )
+                msg = f"Device'{meter_name}' = {measured_value} outside the allowed range ({lower_limit}, {upper_limit})"
+                
+                scan_logger.warning(msg)
+                if strict_check:
+                    raise ScanMeterValueError(msg)
             
     return data
 
@@ -144,6 +145,9 @@ def plot_scan_data(step_data, step_count=cfg.SCAN_SHOW_LAST_STEP_NUMBERS):
     motors = metadata.get("motors", [])
     meters = metadata.get("meters", [])
     steps = metadata.get("steps", [])[-step_count:]
+    if not steps:
+        return
+        
     step_numbers = [step["step_index"] for step in steps]
     
     num_motors = len(motors)
@@ -223,8 +227,11 @@ def plot_meters_data(step_data, step_count=cfg.SCAN_SHOW_LAST_STEP_NUMBERS):
     metadata = step_data["metadata"]
 
     steps = metadata.get("steps", [])[-step_count:]
+    if not steps:
+        return
+        
     step_numbers = [step["step_index"] for step in steps]
-    last_step_index = steps[-1]["step_index"]
+    last_step_index = steps[-1]["step_index"] 
     
     meters = metadata.get("meters", [])
     meter_indices = range(len(meters))
@@ -277,6 +284,9 @@ def plot_checks_data(step_data, step_count=cfg.SCAN_SHOW_LAST_STEP_NUMBERS):
     metadata = step_data["metadata"]
 
     steps = metadata.get("steps", [])[-step_count:]
+    if not steps:
+        return
+        
     step_numbers = [step["step_index"] for step in steps]
     last_step_index = steps[-1]["step_index"]
     
@@ -331,6 +341,9 @@ def plot_motors_data(step_data, step_count=cfg.SCAN_SHOW_LAST_STEP_NUMBERS):
     metadata = step_data["metadata"]
 
     steps = metadata.get("steps", [])[-step_count:]
+    if not steps:
+        return
+        
     step_numbers = [step["step_index"] for step in steps]
     last_step_index = steps[-1]["step_index"]
     
