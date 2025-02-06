@@ -222,157 +222,53 @@ def print_scan_data(step_data, step_count=cfg.SCAN_SHOW_LAST_STEP_NUMBERS):
         print("-" * 40)
 
 
-def plot_meters_data(step_data, step_count=cfg.SCAN_SHOW_LAST_STEP_NUMBERS):
-    data = step_data["data"]
-    metadata = step_data["metadata"]
-
+def plot_generic_data(step_data, items_key, step_value_key, title, xlabel, ylabel,
+                      step_count=cfg.SCAN_SHOW_LAST_STEP_NUMBERS, limits_key=None):
+    metadata = step_data.get("metadata", {})
+    items = metadata.get(items_key, [])
     steps = metadata.get("steps", [])[-step_count:]
     if not steps:
         return
-        
-    step_numbers = [step["step_index"] for step in steps]
-    last_step_index = steps[-1]["step_index"] 
-    
-    meters = metadata.get("meters", [])
-    meter_indices = range(len(meters))
+
+    step_numbers = [step.get("step_index") for step in steps]
+    last_step_index = steps[-1].get("step_index")
+    item_indices = range(len(items))
 
     cmap = cm.binary
-    norm = mcolors.Normalize(vmin=min(step_numbers)-1, vmax=max(step_numbers))
+    norm = mcolors.Normalize(vmin=min(step_numbers) - 1, vmax=max(step_numbers))
     scalar_map = cm.ScalarMappable(norm=norm, cmap=cmap)
     scalar_map.set_array([])
 
     fig, ax = plt.subplots(figsize=(12, 6))
 
     for step in steps:
-        step_index = step["step_index"]
-        meter_data = step.get("meter_data", {})
-        y_values = [meter_data.get(meter, 0) for meter in meters]
-        x_values = list(meter_indices)
-        color = scalar_map.to_rgba(step_index)        
-        marker = "." if step_index != last_step_index else "o"
-        linestyle = "--" if step_index != last_step_index else "-"
-        ax.plot(x_values, y_values, marker=marker, linestyle=linestyle, color=color)
-
-    meter_ranges = metadata.get("meter_ranges", {})
-    for i, meter in enumerate(meters):
-        limits = meter_ranges.get(meter)
-        dx = 0.1
-        if limits is not None and isinstance(limits, (list, tuple)) and len(limits) == 2:
-            ax.hlines(y=limits[0], xmin=i - dx, xmax=i + dx,
-                      colors='red', linestyles='dashed', linewidth=2,
-                      label=f"{meter} limits" if i == 0 else None)
-            ax.hlines(y=limits[1], xmin=i - dx, xmax=i + dx,
-                      colors='red', linestyles='dashed', linewidth=2)
-            
-    ax.set_xticks(meter_indices)
-    ax.set_xticklabels(meters, rotation=45, ha='right')
-
-    ax.set_title("Meters Data Plot", fontsize=16)
-    ax.set_xlabel("Meters")
-    ax.set_ylabel("Meter Values")
-
-    cbar = fig.colorbar(scalar_map, ax=ax)
-    cbar.set_label('Step Index')
-
-    plt.grid(True)
-    plt.tight_layout()
-    plt.show()
-
-
-def plot_checks_data(step_data, step_count=cfg.SCAN_SHOW_LAST_STEP_NUMBERS):
-    data = step_data["data"]
-    metadata = step_data["metadata"]
-
-    steps = metadata.get("steps", [])[-step_count:]
-    if not steps:
-        return
-        
-    step_numbers = [step["step_index"] for step in steps]
-    last_step_index = steps[-1]["step_index"]
-    
-    meters = metadata.get("checks", [])
-    meter_indices = range(len(meters))
-
-    cmap = cm.binary
-    norm = mcolors.Normalize(vmin=min(step_numbers)-1, vmax=max(step_numbers))
-    scalar_map = cm.ScalarMappable(norm=norm, cmap=cmap)
-    scalar_map.set_array([])
-
-    fig, ax = plt.subplots(figsize=(12, 6))
-
-    for step in steps:
-        step_index = step["step_index"]
-        meter_data = step.get("check_data", {})
-        y_values = [meter_data.get(meter, 0) for meter in meters]
-        x_values = list(meter_indices)
-        color = scalar_map.to_rgba(step_index)        
-        marker = "." if step_index != last_step_index else "o"
-        linestyle = "--" if step_index != last_step_index else "-"
-        ax.plot(x_values, y_values, marker=marker, linestyle=linestyle, color=color)
-
-    meter_ranges = metadata.get("check_ranges", {})
-    for i, meter in enumerate(meters):
-        limits = meter_ranges.get(meter)
-        dx = 0.1
-        if limits is not None and isinstance(limits, (list, tuple)) and len(limits) == 2:
-            ax.hlines(y=limits[0], xmin=i - dx, xmax=i + dx,
-                      colors='red', linestyles='dashed', linewidth=2,
-                      label=f"{meter} limits" if i == 0 else None)
-            ax.hlines(y=limits[1], xmin=i - dx, xmax=i + dx,
-                      colors='red', linestyles='dashed', linewidth=2)
-            
-    ax.set_xticks(meter_indices)
-    ax.set_xticklabels(meters, rotation=45, ha='right')
-
-    ax.set_title("Checks Data Plot", fontsize=16)
-    ax.set_xlabel("Checks")
-    ax.set_ylabel("Check Values")
-
-    cbar = fig.colorbar(scalar_map, ax=ax)
-    cbar.set_label('Step Index')
-
-    plt.grid(True)
-    plt.tight_layout()
-    plt.show()
-
-
-def plot_motors_data(step_data, step_count=cfg.SCAN_SHOW_LAST_STEP_NUMBERS):
-    data = step_data["data"]
-    metadata = step_data["metadata"]
-
-    steps = metadata.get("steps", [])[-step_count:]
-    if not steps:
-        return
-        
-    step_numbers = [step["step_index"] for step in steps]
-    last_step_index = steps[-1]["step_index"]
-    
-    motors = metadata.get("motors", [])
-    motor_indices = range(len(motors))
-
-    cmap = cm.binary
-    norm = mcolors.Normalize(vmin=min(step_numbers)-1, vmax=max(step_numbers))
-    scalar_map = cm.ScalarMappable(norm=norm, cmap=cmap)
-    scalar_map.set_array([])
-
-    fig, ax = plt.subplots(figsize=(12, 6))
-
-    for step in steps:
-        step_index = step["step_index"]
-        motor_data = step.get("motor_values", {})
-        y_values = [motor_data.get(motor, 0) for motor in motors]
-        x_values = list(motor_indices)
+        step_index = step.get("step_index")
+        values_dict = step.get(step_value_key, {})
+        y_values = [values_dict.get(item, 0) for item in items]
+        x_values = list(item_indices)
         color = scalar_map.to_rgba(step_index)
         marker = "." if step_index != last_step_index else "o"
         linestyle = "--" if step_index != last_step_index else "-"
         ax.plot(x_values, y_values, marker=marker, linestyle=linestyle, color=color)
 
-    ax.set_xticks(motor_indices)
-    ax.set_xticklabels(motors, rotation=45, ha='right')
+    # Если заданы пределы, добавляем горизонтальные линии
+    if limits_key:
+        limits_dict = metadata.get(limits_key, {})
+        for i, item in enumerate(items):
+            limits = limits_dict.get(item)
+            if limits is not None and isinstance(limits, (list, tuple)) and len(limits) == 2:
+                dx = 0.1
+                ax.hlines(y=limits[0], xmin=i - dx, xmax=i + dx,
+                          colors='red', linestyles='dashed', linewidth=2,
+                          label=f"{item} limits" if i == 0 else None)
+                ax.hlines(y=limits[1], xmin=i - dx, xmax=i + dx,
+                          colors='red', linestyles='dashed', linewidth=2)
 
-    ax.set_title("Motors Data Plot", fontsize=16)
-    ax.set_xlabel("Motors")
-    ax.set_ylabel("Motor Values")
+    ax.set_xticks(list(item_indices))
+    ax.set_xticklabels(items, rotation=45, ha='right')
+    ax.set_title(title, fontsize=16)
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
 
     cbar = fig.colorbar(scalar_map, ax=ax)
     cbar.set_label('Step Index')
@@ -380,6 +276,44 @@ def plot_motors_data(step_data, step_count=cfg.SCAN_SHOW_LAST_STEP_NUMBERS):
     plt.grid(True)
     plt.tight_layout()
     plt.show()
+
+
+def plot_meters_data(step_data, step_count=cfg.SCAN_SHOW_LAST_STEP_NUMBERS):
+    plot_generic_data(
+        step_data,
+        items_key="meters",
+        step_value_key="meter_data",
+        title="Data Plot",
+        xlabel="Devices",
+        ylabel="Device Values",
+        step_count=step_count,
+        limits_key="meter_ranges"
+    )
+
+
+def plot_checks_data(step_data, step_count=cfg.SCAN_SHOW_LAST_STEP_NUMBERS):
+    plot_generic_data(
+        step_data,
+        items_key="checks",
+        step_value_key="check_data",
+        title="Data Plot",
+        xlabel="Devices",
+        ylabel="Device Values",
+        step_count=step_count,
+        limits_key="check_ranges"
+    )
+
+
+def plot_motors_data(step_data, step_count=cfg.SCAN_SHOW_LAST_STEP_NUMBERS):
+    plot_generic_data(
+        step_data,
+        items_key="motors",
+        step_value_key="motor_values",
+        title="Data Plot",
+        xlabel="Devices",
+        ylabel="Device Values",
+        step_count=step_count
+    )
 
 
 def plot_response_matrix(step_data):
