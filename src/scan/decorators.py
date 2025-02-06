@@ -258,6 +258,7 @@ def bayesian_optimization(targets={}, n_calls=10, random_state=42, penalty=10):
                 dimensions=space,
                 n_calls=n_calls,
                 random_state=random_state,
+                x0=off_values,
             )
             
             scan_logger.info("Bayesian optimization is complete.")
