@@ -2,6 +2,12 @@ from .base import *
 
 from epics import caget, caput
 
+# EPIC
+try:
+    caget("")
+except Exception:
+    ...
+    
 # GENERAL
 NOISE_LEVEL = 0
 
