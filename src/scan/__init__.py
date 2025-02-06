@@ -16,10 +16,10 @@ from .decorators import response_measurements, bayesian_optimization, watch_meas
 from .exceptions import ScanMeterValueError
 
 
-def scan(meters, motors, *, get_func, put_func, verify_motor=True, 
+def scan(meters, motors, checks=[], *, get_func, put_func, verify_motor=True, 
          max_retries=cfg.SCAN_MAX_TRIES, delay=cfg.SCAN_DELAY, tolerance=cfg.SCAN_TOLERANCE, 
          data=None, metadata=None, save=False, dirname=cfg.DATA_DIR,
-         callback=None, save_original_motor_values=True, sample_size=cfg.SCAN_SAMPLE_SIZE,
+         callback=[], save_original_motor_values=True, sample_size=cfg.SCAN_SAMPLE_SIZE,
          parallel=cfg.SCAN_PARALLEL, repeat=cfg.SCAN_REPEAT,
 ):
     data = data or {}
@@ -27,6 +27,7 @@ def scan(meters, motors, *, get_func, put_func, verify_motor=True,
     original_motor_values = {}
     motor_names, motor_ranges = [motor[0] for motor in motors], [motor[1] for motor in motors]
     meter_names, meter_ranges = [meter[0] for meter in meters], [meter[1] for meter in meters]
+    check_names, check_ranges = [check[0] for check in checks], [check[1] for check in checks]
     all_combinations = list(itertools.product(*motor_ranges))
     
     if save_original_motor_values:
@@ -40,6 +41,9 @@ def scan(meters, motors, *, get_func, put_func, verify_motor=True,
     metadata["motors"] = motor_names
     metadata["original_motor_values"] =  original_motor_values
     metadata["meters"] = meter_names
+    metadata["meter_ranges"] = {meter_name: meter_range for meter_name, meter_range in zip(meter_names, meter_ranges)}
+    metadata["checks"] = check_names
+    metadata["check_ranges"] = {check_name: check_range for check_name, check_range in zip(check_names, check_ranges)}
     metadata["parameters"] = {
         "save": save, 
         "verify_motor": verify_motor, 
@@ -55,18 +59,10 @@ def scan(meters, motors, *, get_func, put_func, verify_motor=True,
     try:
         for step_index, combination in enumerate(all_combinations*repeat):
             scan_logger.info(f"Step {step_index + 1}/{len(all_combinations)}: Setting motor combination: {combination}")
-            
             set_motors_values(motor_names, combination, get_func, put_func, verify_motor, max_retries, delay, tolerance, parallel)
-            meter_data = get_meters_data(meter_names, get_func, sample_size, delay, parallel)
-            for meter_name, meter_range in zip(meter_names, meter_ranges):
-                measured_value = meter_data.get(meter_name)
-                lower_limit, upper_limit = min(meter_range), max(meter_range)
-                if measured_value < lower_limit or measured_value > upper_limit:
-                    raise ScanMeterValueError(
-                        f"Device value '{meter_name}' = {measured_value} "
-                        f"outside the allowed range ({lower_limit}, {upper_limit})"
-                    )
-                    
+            check_data = get_meters_data(check_names, get_func, sample_size, delay, parallel, check_ranges)
+            scan_logger.info(f"Collected data from checks: {check_data}")
+            meter_data = get_meters_data(meter_names, get_func, sample_size, delay, parallel, meter_ranges)
             scan_logger.info(f"Collected data from meters: {meter_data}")
 
             for motor_name, motor_value in zip(motor_names, combination):
@@ -82,6 +78,7 @@ def scan(meters, motors, *, get_func, put_func, verify_motor=True,
                 "step_index": len(metadata["steps"]) + 1,
                 "motor_values": dict(zip(motor_names, combination)),
                 "meter_data": meter_data,
+                "check_data": check_data,
                 "timestamp": datetime.now().isoformat(),
             }
             metadata["steps"].append(step_metadata)
@@ -120,7 +117,7 @@ def scan(meters, motors, *, get_func, put_func, verify_motor=True,
     return {"data": data, "metadata": metadata}
 
 
-@response_measurements(targets={}, max_attempts=cfg.SCAN_RESPONSE_MEASUREMENTS_MAX_ATTEMPTS, rcond=cfg.SCAN_RESPONSE_MEASUREMENTS_RCOND)
+@response_measurements(targets={}, max_attempts=cfg.SCAN_RESPONSE_MEASUREMENTS_MAX_ATTEMPTS, num_singular_values=cfg.SCAN_RESPONSE_MEASUREMENTS_NUM_SINGULAR_VALUES, rcond=cfg.SCAN_RESPONSE_MEASUREMENTS_RCOND)
 def reply(*args, **kwargs):
     return scan(*args, **kwargs)
 

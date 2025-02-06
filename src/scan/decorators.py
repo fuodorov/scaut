@@ -6,11 +6,11 @@ from skopt import gp_minimize
 from skopt.space import Real, Integer
 from skopt.utils import use_named_args
 
-from .utils import scan_logger
+from .utils import scan_logger, truncated_pinv
 from ..core import config as cfg
 from .exceptions import ScanMeterValueError
 
-def response_measurements(targets={}, max_attempts=10, rcond=1e-15, inverse_mode=True):
+def response_measurements(targets={}, max_attempts=10, num_singular_values=5, rcond=1e-15, inverse_mode=True):
     def decorator(scan_func):
         @wraps(scan_func)
         def wrapper(*args, **kwargs):
@@ -30,17 +30,14 @@ def response_measurements(targets={}, max_attempts=10, rcond=1e-15, inverse_mode
             scan_logger.debug(f"off_values={off_values}, on_values={on_values}")
 
             scan_logger.info("Performing baseline scan...")
-            try:
-                baseline_result = scan_func(
-                    meters=meters,
-                    motors=[(motor_names[i], [off_values[i]]) for i in range(n_motors)],
-                    save=False,
-                    **{k: v for k, v in kwargs.items() if k not in ["motors","meters","save"]}
-                )
-            except ScanMeterValueError as e:
-                scan_logger.error("Device value outside the allowed range!")
-                raise e
-                
+            
+            baseline_result = scan_func(
+                meters=meters,
+                motors=[(motor_names[i], [off_values[i]]) for i in range(n_motors)],
+                save=False,
+                **{k: v for k, v in kwargs.items() if k not in ["motors","meters","save"]}
+            )
+   
             response_metadata = baseline_result["metadata"]
 
             baseline_meter_values = {}
@@ -125,7 +122,10 @@ def response_measurements(targets={}, max_attempts=10, rcond=1e-15, inverse_mode
                         current_on_values = initial_on_values / (2 ** attempt)
                         if attempt >= max_attempts:
                             scan_logger.error("Max attempts reached, unable to complete scan with valid on_values.")
-                            raise e
+                            if response_matrices:
+                                break
+                            else:
+                                raise e
 
 
             avg_response_matrix = sum(response_matrices) / len(response_matrices)
@@ -145,7 +145,7 @@ def response_measurements(targets={}, max_attempts=10, rcond=1e-15, inverse_mode
             delta_meter = target_array - baseline_arr
 
             R = avg_response_matrix
-            R_pinv = np.linalg.pinv(R, rcond=rcond)      # (n_meters, n_motors)
+            R_pinv = truncated_pinv(R, num_singular_values, rcond=rcond)      # (n_meters, n_motors)
             delta_motors = delta_meter @ R_pinv  # (n_motors,)
 
             final_positions = [off_values[i] + delta_motors[i] for i in range(n_motors)]
@@ -153,14 +153,15 @@ def response_measurements(targets={}, max_attempts=10, rcond=1e-15, inverse_mode
             scan_logger.debug(f"Final motor positions: {final_positions}")
             
             final_motors = list(zip(motor_names, [[pos] for pos in final_positions]))
+            
             final_result = scan_func(
                 meters=meters,
                 motors=final_motors,
                 metadata=response_metadata,
                 **{k: v for k, v in kwargs.items() if k not in ["motors","meters"]}
             )
+
             scan_logger.info("Finished response_measurements wrapper.")
-            
             return final_result
         return wrapper
     return decorator
@@ -249,7 +250,7 @@ def bayesian_optimization(targets={}, n_calls=10, random_state=42, penalty=10):
                 target_delta = sum(np.abs(measured_value.get(meter, 0.0) - targets.get(meter, 0.0)) for meter in meter_names)
                 scan_logger.debug(f"Target delta ({targets}): {target_delta}")
                 
-                return penalty*target_delta
+                return target_delta
             
             scan_logger.info("The beginning of Bayesian optimization.")
             res = gp_minimize(

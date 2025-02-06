@@ -17,6 +17,7 @@ import math
 import pandas as pd
 
 from ..core import config as cfg
+from .exceptions import ScanMeterValueError
 
 scan_logger = logging.getLogger('Scan')
 
@@ -99,7 +100,7 @@ def get_meter_data(meter, get_func, sample_size, delay):
     return meter, avg
 
 
-def get_meters_data(meters, get_func, sample_size, delay=0, parallel=False):
+def get_meters_data(meters, get_func, sample_size, delay=0, parallel=False, limits=None):
     data = {}
     if parallel:
         with concurrent.futures.ThreadPoolExecutor() as executor:
@@ -118,6 +119,17 @@ def get_meters_data(meters, get_func, sample_size, delay=0, parallel=False):
         for meter in tqdm_notebook(meters, desc="Collect data"):
             meter, avg = get_meter_data(meter, get_func, sample_size, delay)
             data[meter] = avg
+            
+    if limits:        
+        for meter_name, meter_range in zip(meters, limits):
+            measured_value = data.get(meter_name)
+            lower_limit, upper_limit = min(meter_range), max(meter_range)
+            if measured_value < lower_limit or measured_value > upper_limit:
+                raise ScanMeterValueError(
+                    f"Device value '{meter_name}' = {measured_value} "
+                    f"outside the allowed range ({lower_limit}, {upper_limit})"
+                )
+            
     return data
 
 
@@ -231,12 +243,77 @@ def plot_meters_data(step_data, step_count=cfg.SCAN_SHOW_LAST_STEP_NUMBERS):
         linestyle = "--" if step_index != last_step_index else "-"
         ax.plot(x_values, y_values, marker=marker, linestyle=linestyle, color=color)
 
+    meter_ranges = metadata.get("meter_ranges", {})
+    for i, meter in enumerate(meters):
+        limits = meter_ranges.get(meter)
+        dx = 0.1
+        if limits is not None and isinstance(limits, (list, tuple)) and len(limits) == 2:
+            ax.hlines(y=limits[0], xmin=i - dx, xmax=i + dx,
+                      colors='red', linestyles='dashed', linewidth=2,
+                      label=f"{meter} limits" if i == 0 else None)
+            ax.hlines(y=limits[1], xmin=i - dx, xmax=i + dx,
+                      colors='red', linestyles='dashed', linewidth=2)
+            
     ax.set_xticks(meter_indices)
     ax.set_xticklabels(meters, rotation=45, ha='right')
 
     ax.set_title("Meters Data Plot", fontsize=16)
     ax.set_xlabel("Meters")
     ax.set_ylabel("Meter Values")
+
+    cbar = fig.colorbar(scalar_map, ax=ax)
+    cbar.set_label('Step Index')
+
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()
+
+
+def plot_checks_data(step_data, step_count=cfg.SCAN_SHOW_LAST_STEP_NUMBERS):
+    data = step_data["data"]
+    metadata = step_data["metadata"]
+
+    steps = metadata.get("steps", [])[-step_count:]
+    step_numbers = [step["step_index"] for step in steps]
+    last_step_index = steps[-1]["step_index"]
+    
+    meters = metadata.get("checks", [])
+    meter_indices = range(len(meters))
+
+    cmap = cm.binary
+    norm = mcolors.Normalize(vmin=min(step_numbers)-1, vmax=max(step_numbers))
+    scalar_map = cm.ScalarMappable(norm=norm, cmap=cmap)
+    scalar_map.set_array([])
+
+    fig, ax = plt.subplots(figsize=(12, 6))
+
+    for step in steps:
+        step_index = step["step_index"]
+        meter_data = step.get("check_data", {})
+        y_values = [meter_data.get(meter, 0) for meter in meters]
+        x_values = list(meter_indices)
+        color = scalar_map.to_rgba(step_index)        
+        marker = "." if step_index != last_step_index else "o"
+        linestyle = "--" if step_index != last_step_index else "-"
+        ax.plot(x_values, y_values, marker=marker, linestyle=linestyle, color=color)
+
+    meter_ranges = metadata.get("check_ranges", {})
+    for i, meter in enumerate(meters):
+        limits = meter_ranges.get(meter)
+        dx = 0.1
+        if limits is not None and isinstance(limits, (list, tuple)) and len(limits) == 2:
+            ax.hlines(y=limits[0], xmin=i - dx, xmax=i + dx,
+                      colors='red', linestyles='dashed', linewidth=2,
+                      label=f"{meter} limits" if i == 0 else None)
+            ax.hlines(y=limits[1], xmin=i - dx, xmax=i + dx,
+                      colors='red', linestyles='dashed', linewidth=2)
+            
+    ax.set_xticks(meter_indices)
+    ax.set_xticklabels(meters, rotation=45, ha='right')
+
+    ax.set_title("Checks Data Plot", fontsize=16)
+    ax.set_xlabel("Checks")
+    ax.set_ylabel("Check Values")
 
     cbar = fig.colorbar(scalar_map, ax=ax)
     cbar.set_label('Step Index')
@@ -327,4 +404,18 @@ def plot_response_matrix(step_data):
 
 def clear_output(*args):
     cell_clear_output(wait=True)
+
+
+def truncated_pinv(A, num_singular_values=None, rcond=1e-15):
+    U, s, Vh = np.linalg.svd(A, full_matrices=False)
     
+    if num_singular_values is not None:
+        k = min(num_singular_values, s.shape[0])
+        U = U[:, :k]
+        s = s[:k]
+        Vh = Vh[:k, :]
+    
+    s_inv = np.array([1/x if x > rcond else 0 for x in s])
+    
+    A_pinv = np.dot(Vh.T, np.dot(np.diag(s_inv), U.T))
+    return A_pinv
