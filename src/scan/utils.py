@@ -76,14 +76,16 @@ def set_motors_values(motor_names, combination, get_func, put_func, verify_motor
             for future in tqdm_notebook(
                 concurrent.futures.as_completed(futures),
                 total=len(futures),
-                desc="Set motor values"
+                desc="Set motor values",
+                disable=cfg.TQDM_DISABLE,
             ):
                 future.result()
     else:
         for motor_name, motor_value in tqdm_notebook(
             zip(motor_names, combination),
             total=len(motor_names),
-            desc="Set motor values"
+            desc="Set motor values",
+            disable=cfg.TQDM_DISABLE,
         ):
             set_motor_value(motor_name, motor_value, get_func, put_func,
                     verify_motor, max_retries, delay, tolerance)
@@ -111,12 +113,13 @@ def get_meters_data(meters, get_func, sample_size, delay=0, parallel=False, limi
             for future in tqdm_notebook(
                 concurrent.futures.as_completed(futures),
                 total=len(futures),
-                desc="Collect data"
+                desc="Collect data",
+                disable=cfg.TQDM_DISABLE,
             ):
                 meter, avg = future.result()
                 data[meter] = avg
     else:
-        for meter in tqdm_notebook(meters, desc="Collect data"):
+        for meter in tqdm_notebook(meters, desc="Collect data", disable=cfg.TQDM_DISABLE):
             meter, avg = get_meter_data(meter, get_func, sample_size, delay)
             data[meter] = avg
             

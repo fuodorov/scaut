@@ -319,17 +319,19 @@ def watch_measurements(observation_time=None):
                         **{k: v for k, v in kwargs.items() if k not in ["motors","meters","save"]}
                     )
                     response_metadata = final_scan.get("metadata", {})
-                    
+                except ScanMeterValueError as e:
+                    scan_logger.warning(e)
+                    continue
                 except KeyboardInterrupt as e:
                     scan_logger.error("Scan process stopped by user")
                     break
-                finally:
-                    final_scan = scan_func(
-                        meters=meters,
-                        motors=[(motor_names[i], [on_values[i]]) for i in range(n_motors)],
-                        metadata=response_metadata,
-                        **{k: v for k, v in kwargs.items() if k not in ["motors","meters"]}
-                    )
+                    
+            final_scan = scan_func(
+                meters=meters,
+                motors=[(motor_names[i], [on_values[i]]) for i in range(n_motors)],
+                metadata=response_metadata,
+                **{k: v for k, v in kwargs.items() if k not in ["motors","meters"]}
+            )
             return final_scan
         return wrapper
     return decorator

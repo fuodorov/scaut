@@ -14,6 +14,8 @@ DATA_DIR = os.path.abspath(os.environ.get("DATA_DIR", "data"))
 
 os.makedirs(DATA_DIR, exist_ok=True)
 
+TQDM_DISABLE = os.environ.get("TQDM_DISABLE", True)
+
 SCAN_SHOW_LAST_STEP_NUMBERS =  os.environ.get("SCAN_SHOW_LAST_STEP_NUMBERS", 7)
 
 SCAN_SAMPLE_SIZE = os.environ.get("SCAN_SAMPLE_SIZE", 10)
