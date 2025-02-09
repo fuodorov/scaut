@@ -138,13 +138,19 @@ def get_meters_data(meters, get_func, sample_size, delay=0, parallel=False, limi
 
 
 
-def plot_scan_data(step_data, step_count=cfg.SCAN_SHOW_LAST_STEP_NUMBERS):
+def plot_scan_data(step_data, step_range=None):
     data = step_data["data"]
     metadata = step_data["metadata"]
 
     motors = metadata.get("motors", [])
     meters = metadata.get("meters", [])
-    steps = metadata.get("steps", [])[-step_count:]
+    if step_range is not None:
+        min_index, max_index = step_range
+        steps = [step for step in all_steps
+                 if min_index <= step.get("step_index", 0) <= max_index]
+    else:
+        steps = all_steps[-cfg.SCAN_SHOW_LAST_STEP_NUMBERS:]
+    
     if not steps:
         return
         
@@ -193,9 +199,17 @@ def plot_scan_data(step_data, step_count=cfg.SCAN_SHOW_LAST_STEP_NUMBERS):
     plt.tight_layout(rect=[0, 0, 1, 1])
 
 
-def print_table_scan_data(step_data, step_count=cfg.SCAN_SHOW_LAST_STEP_NUMBERS):
+def print_table_scan_data(step_data, step_range=None):
     metadata = step_data["metadata"]
-    steps = metadata.get("steps", [])[-step_count:]
+    if step_range is not None:
+        min_index, max_index = step_range
+        steps = [step for step in all_steps
+                 if min_index <= step.get("step_index", 0) <= max_index]
+    else:
+        steps = all_steps[-cfg.SCAN_SHOW_LAST_STEP_NUMBERS:]
+    
+    if not steps:
+        return
     
     table_data = []
     for step in steps[::-1]:
@@ -210,9 +224,17 @@ def print_table_scan_data(step_data, step_count=cfg.SCAN_SHOW_LAST_STEP_NUMBERS)
     print(df.to_string(index=False))
 
 
-def print_scan_data(step_data, step_count=cfg.SCAN_SHOW_LAST_STEP_NUMBERS):
+def print_scan_data(step_data, step_range=None):
     metadata = step_data["metadata"]
-    steps = metadata.get("steps", [])[-step_count:]
+    if step_range is not None:
+        min_index, max_index = step_range
+        steps = [step for step in all_steps
+                 if min_index <= step.get("step_index", 0) <= max_index]
+    else:
+        steps = all_steps[-cfg.SCAN_SHOW_LAST_STEP_NUMBERS:]
+    
+    if not steps:
+        return
     
     print("=== Scan Data ===")
     for step in steps[::-1]:
@@ -223,13 +245,20 @@ def print_scan_data(step_data, step_count=cfg.SCAN_SHOW_LAST_STEP_NUMBERS):
 
 
 def plot_generic_data(step_data, items_key, step_value_key, title, xlabel, ylabel,
-                      step_count=cfg.SCAN_SHOW_LAST_STEP_NUMBERS, limits_key=None):
+                      step_range=None, limits_key=None):
     metadata = step_data.get("metadata", {})
     items = metadata.get(items_key, [])
-    steps = metadata.get("steps", [])[-step_count:]
+    all_steps = metadata.get("steps", [])
+    if step_range is not None:
+        min_index, max_index = step_range
+        steps = [step for step in all_steps
+                 if min_index <= step.get("step_index", 0) <= max_index]
+    else:
+        steps = all_steps[-cfg.SCAN_SHOW_LAST_STEP_NUMBERS:]
+    
     if not steps:
         return
-
+        
     step_numbers = [step.get("step_index") for step in steps]
     last_step_index = steps[-1].get("step_index")
     item_indices = range(len(items))
@@ -251,7 +280,6 @@ def plot_generic_data(step_data, items_key, step_value_key, title, xlabel, ylabe
         linestyle = "--" if step_index != last_step_index else "-"
         ax.plot(x_values, y_values, marker=marker, linestyle=linestyle, color=color)
 
-    # Если заданы пределы, добавляем горизонтальные линии
     if limits_key:
         limits_dict = metadata.get(limits_key, {})
         for i, item in enumerate(items):
@@ -278,7 +306,7 @@ def plot_generic_data(step_data, items_key, step_value_key, title, xlabel, ylabe
     plt.show()
 
 
-def plot_meters_data(step_data, step_count=cfg.SCAN_SHOW_LAST_STEP_NUMBERS):
+def plot_meters_data(step_data):
     plot_generic_data(
         step_data,
         items_key="meters",
@@ -286,12 +314,11 @@ def plot_meters_data(step_data, step_count=cfg.SCAN_SHOW_LAST_STEP_NUMBERS):
         title="Data Plot",
         xlabel="Devices",
         ylabel="Device Values",
-        step_count=step_count,
         limits_key="meter_ranges"
     )
 
 
-def plot_checks_data(step_data, step_count=cfg.SCAN_SHOW_LAST_STEP_NUMBERS):
+def plot_checks_data(step_data):
     plot_generic_data(
         step_data,
         items_key="checks",
@@ -299,12 +326,11 @@ def plot_checks_data(step_data, step_count=cfg.SCAN_SHOW_LAST_STEP_NUMBERS):
         title="Data Plot",
         xlabel="Devices",
         ylabel="Device Values",
-        step_count=step_count,
         limits_key="check_ranges"
     )
 
 
-def plot_motors_data(step_data, step_count=cfg.SCAN_SHOW_LAST_STEP_NUMBERS):
+def plot_motors_data(step_data):
     plot_generic_data(
         step_data,
         items_key="motors",
@@ -312,7 +338,6 @@ def plot_motors_data(step_data, step_count=cfg.SCAN_SHOW_LAST_STEP_NUMBERS):
         title="Data Plot",
         xlabel="Devices",
         ylabel="Device Values",
-        step_count=step_count
     )
 
 
