@@ -38,7 +38,7 @@ def response_measurements(targets={}, max_attempts=10, num_singular_values=5, rc
                 **{k: v for k, v in kwargs.items() if k not in ["motors","meters","save"]}
             )
    
-            response_metadata = baseline_result["metadata"]
+            previous_scan = baseline_result
 
             baseline_meter_values = {}
             if motor_names:
@@ -80,12 +80,12 @@ def response_measurements(targets={}, max_attempts=10, num_singular_values=5, rc
                             cal_result = scan_func(
                                 meters=meters,
                                 motors=cal_motors,
-                                metadata=response_metadata,
+                                previous_scan=previous_scan,
                                 save=False,
                                 **{k: v for k, v in kwargs.items() if k not in ["motors", "meters", "save"]}
                             )
             
-                            response_metadata.update(cal_result["metadata"])
+                            previous_scan.update(cal_result)
                             this_data = cal_result["data"].get(mn, {}).get(current_on_values[i], {})
             
                             delta_motors_row = [0.0] * n_motors
@@ -130,7 +130,7 @@ def response_measurements(targets={}, max_attempts=10, num_singular_values=5, rc
 
             avg_response_matrix = sum(response_matrices) / len(response_matrices)
             
-            response_metadata["response_matrix"] = avg_response_matrix.tolist()
+            previous_scan["response_matrix"] = avg_response_matrix.tolist()
 
             target_values = []
             baseline_array = []
@@ -157,7 +157,7 @@ def response_measurements(targets={}, max_attempts=10, num_singular_values=5, rc
             final_result = scan_func(
                 meters=meters,
                 motors=final_motors,
-                metadata=response_metadata,
+                previous_scan=previous_scan,
                 **{k: v for k, v in kwargs.items() if k not in ["motors","meters"]}
             )
 
@@ -200,7 +200,7 @@ def bayesian_optimization(targets={}, n_calls=10, random_state=42, penalty=10, m
                 *args,
                 **{k: v for k, v in kwargs.items() if k not in ["motors", "meters"]}
             )
-            response_metadata = baseline_result.get("metadata", {})
+            previous_scan = baseline_result
             
             baseline_meter_values = {}
             if motor_names:
@@ -226,7 +226,7 @@ def bayesian_optimization(targets={}, n_calls=10, random_state=42, penalty=10, m
                     scan_result = scan_func(
                         meters=meters,
                         motors=calibrated_motors,
-                        metadata=response_metadata,
+                        previous_scan=previous_scan,
                         save=False,
                         *args,
                         **{k: v for k, v in kwargs.items() if k not in ["motors", "meters", "save"]}
@@ -266,14 +266,14 @@ def bayesian_optimization(targets={}, n_calls=10, random_state=42, penalty=10, m
             scan_logger.info(f"Best function result: {res.fun}")
             
             optimized_settings = {dim.name: val for dim, val in zip(space, res.x)}
-            response_metadata["bayesian_optimization"] = {
+            previous_scan["bayesian_optimization"] = {
                 "best_settings": optimized_settings,
                 "best_value": res.fun,
             }
             final_scan = scan_func(
                 meters=meters,
                 motors=[(name, [val]) for name, val in optimized_settings.items()],
-                metadata=response_metadata,
+                previous_scan=previous_scan,
                 *args,
                 **{k: v for k, v in kwargs.items() if k not in ["motors", "meters"]}
             )
@@ -290,7 +290,7 @@ def watch_measurements(observation_time=None):
             scan_logger.info("Calling watch_measurements wrapper")
             start = time.time()
             end = start + observation_time if observation_time is not None else None
-            response_metadata = {}
+            previous_scan = {}
             final_scan = {}
             
             while True:
@@ -314,13 +314,13 @@ def watch_measurements(observation_time=None):
                     final_scan = scan_func(
                         meters=meters,
                         motors=[(motor_names[i], [on_values[i]]) for i in range(n_motors)],
-                        metadata=response_metadata,
+                        previous_scan=previous_scan,
                         save=False,
                         **{k: v for k, v in kwargs.items() if k not in ["motors","meters","save"]}
                     )
-                    response_metadata = final_scan.get("metadata", {})
+                    previous_scan = final_scan
                 except ScanMeterValueError as e:
-                    # scan_logger.warning(e)
+                    scan_logger.warning(e)
                     continue
                 except KeyboardInterrupt as e:
                     scan_logger.error("Scan process stopped by user")
@@ -329,7 +329,7 @@ def watch_measurements(observation_time=None):
             final_scan = scan_func(
                 meters=meters,
                 motors=[(motor_names[i], [on_values[i]]) for i in range(n_motors)],
-                metadata=response_metadata,
+                previous_scan=previous_scan,
                 **{k: v for k, v in kwargs.items() if k not in ["motors","meters"]}
             )
             return final_scan

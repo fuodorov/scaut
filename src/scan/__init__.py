@@ -6,7 +6,7 @@ from tqdm.contrib import tzip
 
 from ..core import config as cfg
 from .utils import (
-    create_output_directory,
+    create_output_path,
     save_data,
     set_motors_values,
     get_meters_data,
@@ -18,12 +18,11 @@ from .exceptions import ScanMeterValueError
 
 def scan(meters, motors, checks=[], *, get_func, put_func, verify_motor=True, 
          max_retries=cfg.SCAN_MAX_TRIES, delay=cfg.SCAN_DELAY, tolerance=cfg.SCAN_TOLERANCE, 
-         data=None, metadata=None, save=False, dirname=cfg.DATA_DIR,
+         previous_scan=None, save=False, prefix_path=cfg.DATA_DIR,
          callback=[], save_original_motor_values=True, sample_size=cfg.SCAN_SAMPLE_SIZE,
          parallel=cfg.SCAN_PARALLEL, repeat=cfg.SCAN_REPEAT, strict_check=False,
 ):
-    data = data or {}
-    metadata = metadata or {}
+    data = previous_scan or {}
     original_motor_values = {}
     motor_names, motor_ranges = [motor[0] for motor in motors], [motor[1] for motor in motors]
     meter_names, meter_ranges = [meter[0] for meter in meters], [meter[1] for meter in meters]
@@ -36,15 +35,16 @@ def scan(meters, motors, checks=[], *, get_func, put_func, verify_motor=True,
         except Exception as e:
             scan_logger.error(f"Error getting initial value for motor '{motor_name}': {e}")
             raise RuntimeError(f"Failed to retrieve initial motor value for '{motor_name}'")
-            
-    metadata["scan_start_time"] = datetime.now().isoformat()
-    metadata["motors"] = motor_names
-    metadata["original_motor_values"] =  original_motor_values
-    metadata["meters"] = meter_names
-    metadata["meter_ranges"] = {meter_name: meter_range for meter_name, meter_range in zip(meter_names, meter_ranges)}
-    metadata["checks"] = check_names
-    metadata["check_ranges"] = {check_name: check_range for check_name, check_range in zip(check_names, check_ranges)}
-    metadata["parameters"] = {
+   
+    data["data"] = {}        
+    data["scan_start_time"] = data.get("scan_start_time", datetime.now().isoformat())
+    data["motors"] = motor_names
+    data["original_motor_values"] =  original_motor_values
+    data["meters"] = meter_names
+    data["meter_ranges"] = {meter_name: meter_range for meter_name, meter_range in zip(meter_names, meter_ranges)}
+    data["checks"] = check_names
+    data["check_ranges"] = {check_name: check_range for check_name, check_range in zip(check_names, check_ranges)}
+    data["parameters"] = {
         "save": save, 
         "verify_motor": verify_motor, 
         "max_retries": max_retries, 
@@ -66,22 +66,22 @@ def scan(meters, motors, checks=[], *, get_func, put_func, verify_motor=True,
             scan_logger.info(f"Collected data from meters: {meter_data}")
 
             for motor_name, motor_value in zip(motor_names, combination):
-                if motor_name not in data:
-                    data[motor_name] = {}
-                if motor_value not in data[motor_name]:
-                    data[motor_name][motor_value] = {}
-                data[motor_name][motor_value].update(meter_data)
+                if motor_name not in data["data"]:
+                    data["data"][motor_name] = {}
+                if motor_value not in data["data"][motor_name]:
+                    data["data"][motor_name][motor_value] = {}
+                data["data"][motor_name][motor_value].update(meter_data)
 
-            if "steps" not in metadata:
-                metadata["steps"] = []
-            step_metadata = {
-                "step_index": len(metadata["steps"]) + 1,
+            if "steps" not in data:
+                data["steps"] = []
+            step_data = {
+                "step_index": len(data["steps"]) + 1,
                 "motor_values": dict(zip(motor_names, combination)),
                 "meter_data": meter_data,
                 "check_data": check_data,
                 "timestamp": datetime.now().isoformat(),
             }
-            metadata["steps"].append(step_metadata)
+            data["steps"].append(step_data)
 
     except KeyboardInterrupt as e:
         scan_logger.error("Scan process stopped by user")
@@ -96,26 +96,25 @@ def scan(meters, motors, checks=[], *, get_func, put_func, verify_motor=True,
         for call in callback:
             if call is not None:
                 scan_logger.info(f"Starting callback {call.__name__}")
-                call({"data": data, "metadata": metadata})
+                call(data)
                 scan_logger.info(f"Callback {call.__name__} process completed")
                     
         if save_original_motor_values:
             scan_logger.info("Restoring motors to their original values")
             set_motors_values(original_motor_values.keys(), original_motor_values.values(), get_func, put_func, verify_motor, max_retries, delay, tolerance, parallel)
                 
-        metadata["scan_end_time"] = datetime.now().isoformat()
-        metadata["total_steps"] = len(metadata.get("steps", []))
+        data["scan_end_time"] = datetime.now().isoformat()
+        data["total_steps"] = len(data.get("steps", []))
         
         if save:
-            dirname = create_output_directory(dirname)
-            metadata["parameters"]["dirname"] = dirname
-            save_data(os.path.join(dirname, "data.json"), data)
-            save_data(os.path.join(dirname, "metadata.json"), metadata)
-            scan_logger.info(f"Data saved to directory {dirname}")
+            path = create_output_path(prefix_path)
+            data["parameters"]["path"] = path
+            save_data(path, data)
+            scan_logger.info(f"Data saved to {path}")
 
         scan_logger.info("Scan process completed")
         
-    return {"data": data, "metadata": metadata}
+    return data
 
 
 @response_measurements(targets={}, max_attempts=cfg.SCAN_RESPONSE_MEASUREMENTS_MAX_ATTEMPTS, num_singular_values=cfg.SCAN_RESPONSE_MEASUREMENTS_NUM_SINGULAR_VALUES, rcond=cfg.SCAN_RESPONSE_MEASUREMENTS_RCOND)

@@ -22,11 +22,14 @@ from .exceptions import ScanMeterValueError
 scan_logger = logging.getLogger('Scan')
 
 
-def create_output_directory(dirname):
-    dir_path = os.path.abspath(os.path.join(dirname if dirname else "", f"{uuid.uuid4()}"))
-    os.makedirs(dir_path, exist_ok=True)
-    scan_logger.info(f"Created directory: {dir_path}")
-    return dir_path
+def create_output_path(prefix_path, name=None):
+    if not name:
+        name = f"{uuid.uuid4()}.json"
+    if prefix_path:
+        os.makedirs(prefix_path, exist_ok=True)
+    path = os.path.abspath(os.path.join(prefix_path if prefix_path else "", name))
+    scan_logger.info(f"Created path: {path}")
+    return path
 
 
 def save_data(data_filename, data):
@@ -138,12 +141,10 @@ def get_meters_data(meters, get_func, sample_size, delay=0, parallel=False, limi
 
 
 
-def plot_scan_data(step_data, step_range=None):
-    data = step_data["data"]
-    metadata = step_data["metadata"]
-
-    motors = metadata.get("motors", [])
-    meters = metadata.get("meters", [])
+def plot_scan_data(scan_data, step_range=None):
+    all_steps = scan_data.get("steps", [])
+    motors = scan_data.get("motors", [])
+    meters = scan_data.get("meters", [])
     if step_range is not None:
         min_index, max_index = step_range
         steps = [step for step in all_steps
@@ -199,8 +200,8 @@ def plot_scan_data(step_data, step_range=None):
     plt.tight_layout(rect=[0, 0, 1, 1])
 
 
-def print_table_scan_data(step_data, step_range=None):
-    metadata = step_data["metadata"]
+def print_table_scan_data(scan_data, step_range=None):
+    all_steps = scan_data.get("steps", [])
     if step_range is not None:
         min_index, max_index = step_range
         steps = [step for step in all_steps
@@ -224,8 +225,8 @@ def print_table_scan_data(step_data, step_range=None):
     print(df.to_string(index=False))
 
 
-def print_scan_data(step_data, step_range=None):
-    metadata = step_data["metadata"]
+def print_scan_data(scan_data, step_range=None):
+    scan_data = scan_data["scan_data"]
     if step_range is not None:
         min_index, max_index = step_range
         steps = [step for step in all_steps
@@ -244,11 +245,10 @@ def print_scan_data(step_data, step_range=None):
         print("-" * 40)
 
 
-def plot_generic_data(step_data, items_key, step_value_key, title, xlabel, ylabel,
+def plot_generic_data(scan_data, items_key, step_value_key, title, xlabel, ylabel,
                       step_range=None, limits_key=None):
-    metadata = step_data.get("metadata", {})
-    items = metadata.get(items_key, [])
-    all_steps = metadata.get("steps", [])
+    items = scan_data.get(items_key, [])
+    all_steps = scan_data.get("steps", [])
     if step_range is not None:
         min_index, max_index = step_range
         steps = [step for step in all_steps
@@ -281,7 +281,7 @@ def plot_generic_data(step_data, items_key, step_value_key, title, xlabel, ylabe
         ax.plot(x_values, y_values, marker=marker, linestyle=linestyle, color=color)
 
     if limits_key:
-        limits_dict = metadata.get(limits_key, {})
+        limits_dict = scan_data.get(limits_key, {})
         for i, item in enumerate(items):
             limits = limits_dict.get(item)
             if limits is not None and isinstance(limits, (list, tuple)) and len(limits) == 2:
@@ -306,9 +306,9 @@ def plot_generic_data(step_data, items_key, step_value_key, title, xlabel, ylabe
     plt.show()
 
 
-def plot_meters_data(step_data):
+def plot_meters_data(scan_data):
     plot_generic_data(
-        step_data,
+        scan_data,
         items_key="meters",
         step_value_key="meter_data",
         title="Data Plot",
@@ -318,9 +318,9 @@ def plot_meters_data(step_data):
     )
 
 
-def plot_checks_data(step_data):
+def plot_checks_data(scan_data):
     plot_generic_data(
-        step_data,
+        scan_data,
         items_key="checks",
         step_value_key="check_data",
         title="Data Plot",
@@ -330,9 +330,9 @@ def plot_checks_data(step_data):
     )
 
 
-def plot_motors_data(step_data):
+def plot_motors_data(scan_data):
     plot_generic_data(
-        step_data,
+        scan_data,
         items_key="motors",
         step_value_key="motor_values",
         title="Data Plot",
@@ -341,15 +341,13 @@ def plot_motors_data(step_data):
     )
 
 
-def plot_response_matrix(step_data):
-    metadata = step_data.get("metadata", {})
-    
-    if "response_matrix" not in metadata:
+def plot_response_matrix(scan_data):  
+    if "response_matrix" not in scan_data:
         return
         
-    motors = metadata.get("motors", [])
-    meters = metadata.get("meters", [])
-    response_matrix = np.array(metadata["response_matrix"])
+    motors = scan_data.get("motors", [])
+    meters = scan_data.get("meters", [])
+    response_matrix = np.array(scan_data["response_matrix"])
 
     fig, ax = plt.subplots(figsize=(10, 8))
     
