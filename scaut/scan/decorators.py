@@ -292,6 +292,7 @@ def watch_measurements(observation_time=None):
             end = start + observation_time if observation_time is not None else None
             previous_scan = {}
             final_scan = {}
+            strict_check = kwargs.get("strict_check", False)
             
             while True:
                 if end is not None and time.time() >= end:
@@ -320,6 +321,10 @@ def watch_measurements(observation_time=None):
                     )
                     previous_scan = final_scan
                 except ScanMeterValueError as e:
+                    if strict_check:
+                        scan_logger.error(e)
+                        raise e
+                        
                     scan_logger.warning(e)
                     continue
                 except KeyboardInterrupt as e:
