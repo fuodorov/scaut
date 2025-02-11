@@ -4,7 +4,7 @@ sys.path.append("../../")
 
 from .base import *
 
-from src.elegant import eleget, eleput
+from scaut.elegant import eleget, eleput
 
 # GENERAL
 NOISE_LEVEL = 0.5
