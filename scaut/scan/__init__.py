@@ -31,7 +31,7 @@ def scan(meters, motors, checks=[], *, get_func, put_func, verify_motor=True,
     
     if save_original_motor_values:
         try:
-            original_motor_values = get_meters_data(motor_names, get_func, sample_size, delay, parallel)
+            original_motor_values, _ = get_meters_data(motor_names, get_func, sample_size, delay, parallel)
         except Exception as e:
             scan_logger.error(f"Error getting initial value for motor '{motor_name}': {e}")
             raise RuntimeError(f"Failed to retrieve initial motor value for '{motor_name}'")
@@ -60,9 +60,9 @@ def scan(meters, motors, checks=[], *, get_func, put_func, verify_motor=True,
         for step_index, combination in enumerate(all_combinations*repeat):
             scan_logger.info(f"Step {step_index + 1}/{len(all_combinations)}: Setting motor combination: {combination}")
             set_motors_values(motor_names, combination, get_func, put_func, verify_motor, max_retries, delay, tolerance, parallel)
-            check_data = get_meters_data(check_names, get_func, sample_size, delay, parallel, check_ranges, strict_check)
+            check_data, check_errors = get_meters_data(check_names, get_func, sample_size, delay, parallel, check_ranges, strict_check)
             scan_logger.info(f"Collected data from checks: {check_data}")
-            meter_data = get_meters_data(meter_names, get_func, sample_size, delay, parallel, meter_ranges, strict_check)
+            meter_data, meter_errors = get_meters_data(meter_names, get_func, sample_size, delay, parallel, meter_ranges, strict_check)
             scan_logger.info(f"Collected data from meters: {meter_data}")
 
             for motor_name, motor_value in zip(motor_names, combination):
@@ -79,6 +79,8 @@ def scan(meters, motors, checks=[], *, get_func, put_func, verify_motor=True,
                 "motor_values": dict(zip(motor_names, combination)),
                 "meter_data": meter_data,
                 "check_data": check_data,
+                "meter_errors": meter_errors,
+                "check_errors": check_errors,
                 "timestamp": datetime.now().isoformat(),
             }
             data["steps"].append(step_data)

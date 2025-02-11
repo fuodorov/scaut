@@ -13,7 +13,6 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 import matplotlib.cm as cm
 from IPython.display import clear_output as cell_clear_output
-import math
 import pandas as pd
 
 from ..core import config as cfg
@@ -100,45 +99,46 @@ def get_meter_data(meter, get_func, sample_size, delay):
     for _ in range(sample_size):
         values.append(get_func(meter))
         time.sleep(delay)
+        
     avg = sum(values) / sample_size
-    scan_logger.debug(f"Data collected for {meter}: {avg}")
-    return meter, avg
+    std = np.sqrt(sum((x - avg) ** 2 for x in values) / sample_size)
+    scan_logger.debug(f"Data collected for {meter}: avg = {avg}, std = {std}")
+    return meter, avg, std
 
 
 def get_meters_data(meters, get_func, sample_size, delay=0, parallel=False, limits=None, strict_check=False):
-    data = {}
+    data, error_data = {}, {}
     if parallel:
         with concurrent.futures.ThreadPoolExecutor() as executor:
             futures = {
                 executor.submit(get_meter_data, meter, get_func, sample_size, delay): meter
                 for meter in meters
             }
-            for future in tqdm_notebook(
-                concurrent.futures.as_completed(futures),
-                total=len(futures),
-                desc="Collect data",
-                disable=cfg.TQDM_DISABLE,
-            ):
-                meter, avg = future.result()
+            for future in tqdm_notebook(concurrent.futures.as_completed(futures),
+                               total=len(futures),
+                               desc="Collect data",
+                               disable=cfg.TQDM_DISABLE):
+                meter, avg, sem = future.result()
                 data[meter] = avg
+                error_data[meter] = sem
     else:
         for meter in tqdm_notebook(meters, desc="Collect data", disable=cfg.TQDM_DISABLE):
-            meter, avg = get_meter_data(meter, get_func, sample_size, delay)
+            meter, avg, sem = get_meter_data(meter, get_func, sample_size, delay)
             data[meter] = avg
+            error_data[meter] = sem
             
-    if limits:        
+    if limits:
         for meter_name, meter_range in zip(meters, limits):
-            measured_value = data.get(meter_name)
+            measured_avg = data.get(meter_name, {})
             lower_limit, upper_limit = min(meter_range), max(meter_range)
-            if measured_value < lower_limit or measured_value > upper_limit:
-                msg = f"Device'{meter_name}' = {measured_value} outside the allowed range ({lower_limit}, {upper_limit})"
-                
+            if measured_avg < lower_limit or measured_avg > upper_limit:
+                msg = (f"Device '{meter_name}' measured value = {measured_avg} "
+                       f"outside the allowed range ({lower_limit}, {upper_limit})")
                 scan_logger.warning(msg)
                 if strict_check:
                     raise ScanMeterValueError(msg)
-            
-    return data
-
+                    
+    return data, error_data
 
 
 def plot_scan_data(scan_data, step_range=None):
@@ -218,6 +218,7 @@ def print_table_scan_data(scan_data, step_range=None):
         row.update({"Step": step.get('step_index', {})})
         row.update(step.get("motor_values", {}))
         row.update(step.get("meter_data", {}))
+        row.update(step.get("meter_errors", {}))
         table_data.append(row)
     
     df = pd.DataFrame(table_data)
@@ -242,11 +243,12 @@ def print_scan_data(scan_data, step_range=None):
         print(f"Step {step.get('step_index', None)}:")
         print(f"  Motor Values: {step.get('motor_values', {})}")
         print(f"  Meter Data: {step.get('meter_data', {})}")
+        print(f"  Meter Errors: {step.get('meter_errors', {})}")
         print("-" * 40)
 
 
 def plot_generic_data(scan_data, items_key, step_value_key, title, xlabel, ylabel,
-                      step_range=None, limits_key=None):
+                      step_range=None, limits_key=None, errors_key=None):
     items = scan_data.get(items_key, [])
     all_steps = scan_data.get("steps", [])
     if step_range is not None:
@@ -278,7 +280,13 @@ def plot_generic_data(scan_data, items_key, step_value_key, title, xlabel, ylabe
         color = scalar_map.to_rgba(step_index)
         marker = "." if step_index != last_step_index else "o"
         linestyle = "--" if step_index != last_step_index else "-"
-        ax.plot(x_values, y_values, marker=marker, linestyle=linestyle, color=color)
+        if errors_key and step_index == last_step_index:
+            errors_dict = step.get(errors_key, {})
+            y_errors = [errors_dict.get(item, 0) for item in items]
+            ax.errorbar(x_values, y_values, yerr=y_errors, fmt=marker,
+                        linestyle=linestyle, color=color, capsize=3)
+        else:
+            ax.plot(x_values, y_values, marker=marker, linestyle=linestyle, color=color)
 
     if limits_key:
         limits_dict = scan_data.get(limits_key, {})
@@ -314,7 +322,8 @@ def plot_meters_data(scan_data):
         title="Data Plot",
         xlabel="Devices",
         ylabel="Device Values",
-        limits_key="meter_ranges"
+        limits_key="meter_ranges",
+        errors_key="meter_errors"
     )
 
 
@@ -326,7 +335,8 @@ def plot_checks_data(scan_data):
         title="Data Plot",
         xlabel="Devices",
         ylabel="Device Values",
-        limits_key="check_ranges"
+        limits_key="check_ranges",
+        errors_key="check_errors"
     )
 
 

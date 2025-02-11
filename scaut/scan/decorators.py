@@ -353,9 +353,10 @@ def add_noise(noise_level):
             return random.gauss(result, abs(result) * noise_level) if isinstance(result, (int, float)) else result
         return wrapper
     return decorator
+    
 
-
-def add_plot_params(items_key, step_value_key, title="Data Plot", xlabel="Devices", ylabel="Device Values", limits_key=None):
+def add_plot_params(items_key, step_value_key, title="Data Plot", xlabel="Devices", ylabel="Device Values", 
+                    limits_key=None, errors_key=None):
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
@@ -366,6 +367,7 @@ def add_plot_params(items_key, step_value_key, title="Data Plot", xlabel="Device
                 "xlabel": xlabel,
                 "ylabel": ylabel,
                 "limits_key": limits_key,
+                "errors_key": errors_key
             }
             for key, value in defaults.items():
                 kwargs.setdefault(key, value)
