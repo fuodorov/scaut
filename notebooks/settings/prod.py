@@ -11,7 +11,7 @@ except Exception:
 # GENERAL
 NOISE_LEVEL = 0
 
-VERIFY_MOTOR = True
+VERIFY_MOTOR = False
 
 DELAY = milli
 
@@ -25,15 +25,17 @@ SAVE_SCAN = True
 
 DIRNAME_DATA = "data/prod"
 
-SAVE_ORIGINAL_MOTOR_VALUES = True
+SAVE_ORIGINAL_MOTOR_VALUES = False
 
-PARALLEL = False
+PARALLEL = True
 
 REPEAT = 1
 
 GET_FUNC = caget
 
 PUT_FUNC = caput
+
+STRICT_CHECK = True
 
 # MOTORS
 DEFAULT_CORRECTOR_VALUES = [0] # A

@@ -18,7 +18,7 @@ from .exceptions import ScanMeterValueError
 
 def scan(meters, motors, checks=[], *, get_func, put_func, verify_motor=True, 
          max_retries=cfg.SCAN_MAX_TRIES, delay=cfg.SCAN_DELAY, tolerance=cfg.SCAN_TOLERANCE, 
-         previous_scan=None, save=False, prefix_path=cfg.DATA_DIR,
+         previous_scan=None, save=False, path=cfg.DATA_DIR, name=None,
          callback=[], save_original_motor_values=True, sample_size=cfg.SCAN_SAMPLE_SIZE,
          parallel=cfg.SCAN_PARALLEL, repeat=cfg.SCAN_REPEAT, strict_check=False,
 ):
@@ -109,7 +109,7 @@ def scan(meters, motors, checks=[], *, get_func, put_func, verify_motor=True,
         data["total_steps"] = len(data.get("steps", []))
         
         if save:
-            path = create_output_path(prefix_path)
+            path = create_output_path(path, name)
             data["parameters"]["path"] = path
             save_data(path, data)
             scan_logger.info(f"Data saved to {path}")
@@ -132,6 +132,3 @@ def optimize(*args, **kwargs):
 @watch_measurements(observation_time=None)
 def watch(*args, **kwargs):
     return scan(*args, **kwargs)
-
-
-    
