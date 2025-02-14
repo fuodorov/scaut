@@ -25,7 +25,7 @@ def eleget(name, as_string=False):
     except (exceptions.ElegantFileNotFoundError, exceptions.ElegantFieldNotFoundError, exceptions.ElegantElementNotFoundError) as e:
         utils.elegant_logger.error(e)
         raise e
-
+        
     return str(out) if as_string else out
 
 

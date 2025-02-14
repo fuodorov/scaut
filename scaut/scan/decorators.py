@@ -8,9 +8,9 @@ from skopt.utils import use_named_args
 
 from .utils import scan_logger, truncated_pinv
 from ..core import config as cfg
-from .exceptions import ScanMeterValueError
+from .exceptions import ScanValueError
 
-def response_measurements(targets={}, max_attempts=10, num_singular_values=5, rcond=1e-15, inverse_mode=True):
+def response_measurements(targets={}, max_attempts=10, num_singular_values=10, rcond=1e-15, inverse_mode=True):
     def decorator(scan_func):
         @wraps(scan_func)
         def wrapper(*args, **kwargs):
@@ -60,18 +60,19 @@ def response_measurements(targets={}, max_attempts=10, num_singular_values=5, rc
                 else [np.array(off_values) + np.array(on_values)]
             )
             response_matrices = []
-            
             for initial_on_values in on_values_all:
                 current_on_values = initial_on_values.copy()
-                attempt = 0
-            
-                while attempt < max_attempts:
-                    motors_matrix, measurements_matrix = [], []
-                    try:
-                        scan_logger.info("Performing individual scans for each motor to build the response matrix.")
-            
-                        for i, mn in enumerate(motor_names):
+                motors_matrix, measurements_matrix = [], []
+                scan_logger.info("Performing individual scans for each motor to build the response matrix.")
+                
+                for i, mn in enumerate(motor_names):
+                    attempt = 0
+                    success = False
+                    
+                    while attempt < max_attempts and not success:
+                        try:
                             scan_logger.debug(f"Performing scan for motor {mn}, on_value={current_on_values[i]}")
+                            
                             cal_motors = []
                             for j, other_mn in enumerate(motor_names):
                                 value = current_on_values[j] if j == i else off_values[j]
@@ -84,56 +85,52 @@ def response_measurements(targets={}, max_attempts=10, num_singular_values=5, rc
                                 save=False,
                                 **{k: v for k, v in kwargs.items() if k not in ["motors", "meters", "save"]}
                             )
-            
+                            
                             previous_scan.update(cal_result)
                             this_data = cal_result["data"].get(mn, {}).get(current_on_values[i], {})
-            
+
                             delta_motors_row = [0.0] * n_motors
                             delta_motors_row[i] = (current_on_values[i] - off_values[i])
+                            
                             delta_meters_row = []
                             for meter_name in meter_names:
                                 meas_val = this_data.get(meter_name, 0.0)
                                 base_val = baseline_meter_values.get(meter_name, 0.0)
                                 delta_meters_row.append(meas_val - base_val)
-            
+                            
                             motors_matrix.append(delta_motors_row)
                             measurements_matrix.append(delta_meters_row)
-            
-                        motors_matrix = np.array(motors_matrix)             # shape: (n_motors, n_motors)
-                        measurements_matrix = np.array(measurements_matrix)   # shape: (n_motors, n_meters)
-            
-                        scan_logger.debug(f"motors_matrix:\n{motors_matrix}")
-                        scan_logger.debug(f"measurements_matrix:\n{measurements_matrix}")
-                        scan_logger.info("Computing the response matrix.")
-            
-                        pseudo_inverse = np.linalg.pinv(motors_matrix, rcond=rcond)
-                        response_matrix = pseudo_inverse @ measurements_matrix
-                        scan_logger.debug(f"response_matrix:\n{response_matrix}")
-            
-                        response_matrices.append(response_matrix)
-                        break
-            
-                    except ScanMeterValueError as e:
-                        attempt += 1
-                        scan_logger.warning(
-                            f"Attempt {attempt}: Device value outside the allowed range! "
-                            "Reducing on_values in half and retrying..."
-                        )
-                        current_on_values = initial_on_values / (2 ** attempt)
-                        if attempt >= max_attempts:
-                            scan_logger.error("Max attempts reached, unable to complete scan with valid on_values.")
-                            if response_matrices:
-                                break
-                            else:
+                            
+                            success = True
+                        except ScanValueError as e:
+                            attempt += 1
+                            scan_logger.warning(
+                                f"Attempt {attempt} for motor {mn}: Device value outside the allowed range! "
+                                "Reducing on_value for this motor and retrying..."
+                            )
+                            current_on_values[i] /= 2
+                            if attempt >= max_attempts:
+                                scan_logger.error(f"Max attempts reached for motor {mn}. Unable to complete scan with valid on_value.")
                                 raise e
+                                    
+                motors_matrix = np.array(motors_matrix)             # shape: (n_motors, n_motors)
+                measurements_matrix = np.array(measurements_matrix)   # shape: (n_motors, n_meters)
+                
+                scan_logger.debug(f"motors_matrix:\n{motors_matrix}")
+                scan_logger.debug(f"measurements_matrix:\n{measurements_matrix}")
+                scan_logger.info("Computing the response matrix.")
+                
+                pseudo_inverse = np.linalg.pinv(motors_matrix, rcond=rcond)
+                response_matrix = pseudo_inverse @ measurements_matrix
+                scan_logger.debug(f"response_matrix:\n{response_matrix}")
+                
+                response_matrices.append(response_matrix)
 
 
             avg_response_matrix = sum(response_matrices) / len(response_matrices)
-            
             previous_scan["response_matrix"] = avg_response_matrix.tolist()
 
-            target_values = []
-            baseline_array = []
+            target_values, baseline_array = [], []
 
             scan_logger.info("Computing motor deltas to reach targets.")
             for meter_name in meter_names:
@@ -145,22 +142,58 @@ def response_measurements(targets={}, max_attempts=10, num_singular_values=5, rc
             delta_meter = target_array - baseline_arr
 
             R = avg_response_matrix
-            R_pinv = truncated_pinv(R, num_singular_values, rcond=rcond)      # (n_meters, n_motors)
-            delta_motors = delta_meter @ R_pinv  # (n_motors,)
+            max_singular_values = min(num_singular_values, min(R.shape))
+            best_error, best_delta_motors, best_final_positions, best_candidate = np.inf, None, None, None
 
-            final_positions = [off_values[i] + delta_motors[i] for i in range(n_motors)]
-            scan_logger.debug(f"Calculated motor deltas: {delta_motors}")
-            scan_logger.debug(f"Final motor positions: {final_positions}")
+            for candidate in range(0, max_singular_values + 1):
+                R_pinv_candidate = truncated_pinv(R, candidate, rcond=rcond)  # (n_meters, n_motors)
+                delta_motors_candidate = delta_meter @ R_pinv_candidate         # (n_motors,)
+                
+                final_positions_candidate = [off_values[i] + delta_motors_candidate[i] for i in range(n_motors)]
+                final_motors_candidate = list(zip(motor_names, [[pos] for pos in final_positions_candidate]))
+                
+                try:
+                    final_result_candidate = scan_func(
+                        meters=meters,
+                        motors=final_motors_candidate,
+                        previous_scan=previous_scan,
+                        save=False,
+                        **{k: v for k, v in kwargs.items() if k not in ["motors", "meters", "save"]}
+                    )
+                except ScanValueError as e:
+                    scan_logger.warning(
+                        f"Candidate {candidate}: Device value outside the allowed range! "
+                        "Next candidate and retrying..."
+                    )
+                    continue
+                    
+                previous_scan.update(final_result_candidate)
+                previous_scan["steps"][-1]["num_singular_values"] = candidate
+                candidate_array = [final_result_candidate["steps"][-1]["meter_data"][name] for name in meter_names]
+                candidate_error = np.linalg.norm(np.array(target_values) - np.array(candidate_array))
+                
+                scan_logger.debug(f"Candidate using {candidate} singular values: error = {candidate_error:.5f}")
+                
+                if candidate_error < best_error:
+                    best_error = candidate_error
+                    best_delta_motors = delta_motors_candidate
+                    best_final_positions = final_positions_candidate
+                    best_candidate = candidate
+                    previous_scan["num_singular_values"] = best_candidate
             
-            final_motors = list(zip(motor_names, [[pos] for pos in final_positions]))
+            scan_logger.info(f"Selected candidate with {best_candidate} singular values (error {best_error:.5f}).")     
+            scan_logger.debug(f"Calculated motor deltas: {best_delta_motors}")
+            scan_logger.debug(f"Final motor positions: {best_final_positions}")
+            
+            final_motors = list(zip(motor_names, [[pos] for pos in best_final_positions]))
             
             final_result = scan_func(
                 meters=meters,
                 motors=final_motors,
                 previous_scan=previous_scan,
-                **{k: v for k, v in kwargs.items() if k not in ["motors","meters"]}
+                **{k: v for k, v in kwargs.items() if k not in ["motors", "meters"]}
             )
-
+            
             scan_logger.info("Finished response_measurements wrapper.")
             return final_result
         return wrapper
@@ -231,7 +264,7 @@ def bayesian_optimization(targets={}, n_calls=10, random_state=42, penalty=10, m
                         *args,
                         **{k: v for k, v in kwargs.items() if k not in ["motors", "meters", "save"]}
                     )
-                except ScanMeterValueError as e:
+                except ScanValueError as e:
                     scan_logger.warning(f"Device value outside the allowed range! Add penalty {penalty}")
                     return penalty
                 
@@ -320,7 +353,7 @@ def watch_measurements(observation_time=None):
                         **{k: v for k, v in kwargs.items() if k not in ["motors","meters","save"]}
                     )
                     previous_scan = final_scan
-                except ScanMeterValueError as e:
+                except ScanValueError as e:
                     if strict_check:
                         scan_logger.error(e)
                         raise e

@@ -16,7 +16,7 @@ from IPython.display import clear_output as cell_clear_output
 import pandas as pd
 
 from ..core import config as cfg
-from .exceptions import ScanMeterValueError
+from .exceptions import ScanValueError
 
 scan_logger = logging.getLogger('Scan')
 
@@ -136,7 +136,7 @@ def get_meters_data(meters, get_func, sample_size, delay=0, parallel=False, limi
                        f"outside the allowed range ({lower_limit}, {upper_limit})")
                 scan_logger.warning(msg)
                 if strict_check:
-                    raise ScanMeterValueError(msg)
+                    raise ScanValueError(msg)
                     
     return data, error_data
 
@@ -314,7 +314,7 @@ def plot_generic_data(scan_data, items_key, step_value_key, title, xlabel, ylabe
     plt.show()
 
 
-def plot_meters_data(scan_data):
+def plot_meters_data(scan_data, step_range=None):
     plot_generic_data(
         scan_data,
         items_key="meters",
@@ -323,11 +323,12 @@ def plot_meters_data(scan_data):
         xlabel="Devices",
         ylabel="Device Values",
         limits_key="meter_ranges",
-        errors_key="meter_errors"
+        errors_key="meter_errors",
+        step_range=step_range,
     )
 
 
-def plot_checks_data(scan_data):
+def plot_checks_data(scan_data, step_range=None):
     plot_generic_data(
         scan_data,
         items_key="checks",
@@ -336,11 +337,12 @@ def plot_checks_data(scan_data):
         xlabel="Devices",
         ylabel="Device Values",
         limits_key="check_ranges",
-        errors_key="check_errors"
+        errors_key="check_errors",
+        step_range=step_range,
     )
 
 
-def plot_motors_data(scan_data):
+def plot_motors_data(scan_data, step_range=None):
     plot_generic_data(
         scan_data,
         items_key="motors",
@@ -348,6 +350,7 @@ def plot_motors_data(scan_data):
         title="Data Plot",
         xlabel="Devices",
         ylabel="Device Values",
+        step_range=step_range,
     )
 
 

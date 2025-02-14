@@ -13,7 +13,7 @@ from .utils import (
     scan_logger,
 )
 from .decorators import response_measurements, bayesian_optimization, watch_measurements
-from .exceptions import ScanMeterValueError
+from .exceptions import ScanValueError
 
 
 def scan(meters, motors, checks=[], *, get_func, put_func, verify_motor=True, 
