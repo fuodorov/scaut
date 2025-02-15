@@ -23,7 +23,7 @@ scan_logger = logging.getLogger('Scan')
 
 def create_output_path(prefix_path, name=None):
     if not name:
-        name = f"{uuid.uuid4()}.json"
+        name = f"{time.strftime('%Y%m%d_%H%M%S')}.json"
     if prefix_path:
         os.makedirs(prefix_path, exist_ok=True)
     path = os.path.abspath(os.path.join(prefix_path if prefix_path else "", name))
@@ -355,12 +355,12 @@ def plot_motors_data(scan_data, step_range=None):
 
 
 def plot_response_matrix(scan_data):  
-    if "response_matrix" not in scan_data:
+    if "response_measurements" not in scan_data:
         return
         
     motors = scan_data.get("motors", [])
     meters = scan_data.get("meters", [])
-    response_matrix = np.array(scan_data["response_matrix"])
+    response_matrix = np.array(scan_data["response_measurements"]["response_matrix"])
 
     fig, ax = plt.subplots(figsize=(10, 8))
     

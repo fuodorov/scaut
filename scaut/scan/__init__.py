@@ -36,22 +36,22 @@ def scan(meters, motors, checks=[], *, get_func, put_func, verify_motor=True,
             scan_logger.error(f"Error getting initial value for motor '{motor_name}': {e}")
             raise RuntimeError(f"Failed to retrieve initial motor value for '{motor_name}'")
    
-    data["data"] = {}        
-    data["scan_start_time"] = data.get("scan_start_time", datetime.now().isoformat())
-    data["motors"] = motor_names
-    data["original_motor_values"] =  original_motor_values
-    data["meters"] = meter_names
-    data["meter_ranges"] = {meter_name: meter_range for meter_name, meter_range in zip(meter_names, meter_ranges)}
-    data["checks"] = check_names
-    data["check_ranges"] = {check_name: check_range for check_name, check_range in zip(check_names, check_ranges)}
-    data["parameters"] = {
+    data.update({
+        "data": {},        
+        "scan_start_time": data.get("scan_start_time", datetime.now().isoformat()),
+        "motors": motor_names,
+        "original_motor_values": original_motor_values,
+        "meters": meter_names,
+        "meter_ranges": {meter_name: meter_range for meter_name, meter_range in zip(meter_names, meter_ranges)},
+        "checks": check_names,
+        "check_ranges": {check_name: check_range for check_name, check_range in zip(check_names, check_ranges)},
         "save": save, 
         "verify_motor": verify_motor, 
         "max_retries": max_retries, 
         "delay": delay, 
         "tolerance": tolerance, 
-        "sample_size": sample_size
-    }
+        "sample_size": sample_size,
+    })
     scan_logger.info("Starting scan process")
     scan_logger.info(f"Motors: {motor_names}")
     scan_logger.info(f"Motor value combinations: {all_combinations}")
@@ -110,7 +110,7 @@ def scan(meters, motors, checks=[], *, get_func, put_func, verify_motor=True,
         
         if save:
             path = create_output_path(path, name)
-            data["parameters"]["path"] = path
+            data["path"] = path
             save_data(path, data)
             scan_logger.info(f"Data saved to {path}")
 

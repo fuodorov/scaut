@@ -126,12 +126,9 @@ def response_measurements(targets={}, max_attempts=10, num_singular_values=10, r
                 
                 response_matrices.append(response_matrix)
 
-
             avg_response_matrix = sum(response_matrices) / len(response_matrices)
-            previous_scan["response_matrix"] = avg_response_matrix.tolist()
-
             target_values, baseline_array = [], []
-
+            
             scan_logger.info("Computing motor deltas to reach targets.")
             for meter_name in meter_names:
                 target_values.append(targets.get(meter_name, 0.0))
@@ -168,7 +165,6 @@ def response_measurements(targets={}, max_attempts=10, num_singular_values=10, r
                     continue
                     
                 previous_scan.update(final_result_candidate)
-                previous_scan["steps"][-1]["num_singular_values"] = candidate
                 candidate_array = [final_result_candidate["steps"][-1]["meter_data"][name] for name in meter_names]
                 candidate_error = np.linalg.norm(np.array(target_values) - np.array(candidate_array))
                 
@@ -179,8 +175,15 @@ def response_measurements(targets={}, max_attempts=10, num_singular_values=10, r
                     best_delta_motors = delta_motors_candidate
                     best_final_positions = final_positions_candidate
                     best_candidate = candidate
-                    previous_scan["num_singular_values"] = best_candidate
             
+            previous_scan["response_measurements"] = {
+                "targets": targets,
+                "response_matrix": avg_response_matrix.tolist(),
+                "best_error": candidate_error.tolist(),
+                "best_delta_motors": best_delta_motors.tolist(),
+                "best_final_positions": final_positions_candidate,
+                "best_num_singular_values": best_candidate,
+            }
             scan_logger.info(f"Selected candidate with {best_candidate} singular values (error {best_error:.5f}).")     
             scan_logger.debug(f"Calculated motor deltas: {best_delta_motors}")
             scan_logger.debug(f"Final motor positions: {best_final_positions}")
@@ -300,6 +303,7 @@ def bayesian_optimization(targets={}, n_calls=10, random_state=42, penalty=10, m
             
             optimized_settings = {dim.name: val for dim, val in zip(space, res.x)}
             previous_scan["bayesian_optimization"] = {
+                "targets": targets,
                 "best_settings": optimized_settings,
                 "best_value": res.fun,
             }
