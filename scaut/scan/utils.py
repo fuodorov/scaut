@@ -146,9 +146,9 @@ def plot_scan_data(scan_data, step_range=None):
     motors = scan_data.get("motors", [])
     meters = scan_data.get("meters", [])
     if step_range is not None:
-        min_index, max_index = step_range
+        min_index, max_index, step_size = step_range
         steps = [step for step in all_steps
-                 if min_index <= step.get("step_index", 0) <= max_index]
+                 if min_index <= step.get("step_index", 0) <= max_index][::step_size]
     else:
         steps = all_steps[-cfg.SCAN_SHOW_LAST_STEP_NUMBERS:]
     
@@ -203,9 +203,9 @@ def plot_scan_data(scan_data, step_range=None):
 def print_table_scan_data(scan_data, step_range=None):
     all_steps = scan_data.get("steps", [])
     if step_range is not None:
-        min_index, max_index = step_range
+        min_index, max_index, step_size = step_range
         steps = [step for step in all_steps
-                 if min_index <= step.get("step_index", 0) <= max_index]
+                 if min_index <= step.get("step_index", 0) <= max_index][::step_size]
     else:
         steps = all_steps[-cfg.SCAN_SHOW_LAST_STEP_NUMBERS:]
     
@@ -229,9 +229,9 @@ def print_table_scan_data(scan_data, step_range=None):
 def print_scan_data(scan_data, step_range=None):
     scan_data = scan_data["scan_data"]
     if step_range is not None:
-        min_index, max_index = step_range
+        min_index, max_index, step_size = step_range
         steps = [step for step in all_steps
-                 if min_index <= step.get("step_index", 0) <= max_index]
+                 if min_index <= step.get("step_index", 0) <= max_index][::step_size]
     else:
         steps = all_steps[-cfg.SCAN_SHOW_LAST_STEP_NUMBERS:]
     
@@ -252,9 +252,9 @@ def plot_generic_data(scan_data, items_key, step_value_key, title, xlabel, ylabe
     items = scan_data.get(items_key, [])
     all_steps = scan_data.get("steps", [])
     if step_range is not None:
-        min_index, max_index = step_range
+        min_index, max_index, step_size = step_range
         steps = [step for step in all_steps
-                 if min_index <= step.get("step_index", 0) <= max_index]
+                 if min_index <= step.get("step_index", 0) <= max_index][::step_size]
     else:
         steps = all_steps[-cfg.SCAN_SHOW_LAST_STEP_NUMBERS:]
     
