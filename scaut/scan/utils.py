@@ -23,7 +23,7 @@ scan_logger = logging.getLogger('Scan')
 
 def create_output_path(prefix_path, name=None):
     if not name:
-        name = f"{time.strftime('%Y%m%d_%H%M%S')}.json"
+        name = f"{time.strftime('scan-%Y-%m-%d_%H-%M-%S')}.json"
     if prefix_path:
         os.makedirs(prefix_path, exist_ok=True)
     path = os.path.abspath(os.path.join(prefix_path if prefix_path else "", name))
