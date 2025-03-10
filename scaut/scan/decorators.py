@@ -5,6 +5,7 @@ from functools import wraps
 from skopt import gp_minimize
 from skopt.space import Real, Integer
 from skopt.utils import use_named_args
+from scipy.optimize import least_squares
 
 from .utils import scan_logger, truncated_pinv
 from ..core import config as cfg
@@ -318,6 +319,96 @@ def bayesian_optimization(targets={}, n_calls=10, random_state=42, penalty=10, m
             return final_scan
         return wrapper
     return decorator
+
+
+def least_squares_fitting(targets={}, penalty=10, method="lm", max_nfev=1):
+    def decorator(scan_func):
+        @wraps(scan_func)
+        def wrapper(*args, **kwargs):
+            scan_logger.info("Launching the least_squares fitting decorator.")
+
+            motors, meters = kwargs.get("motors", []), kwargs.get("meters", [])
+            motor_names, meter_names = [m[0] for m in motors], [m[0] for m in meters]
+            motor_bounds = {m[0]: (m[1][0]-m[1][1], m[1][0]+m[1][1]) for m in motors}
+            motor_initial_guess = {m[0]: m[1][0] for m in motors}
+
+            baseline_scan = targets or kwargs.get("previous_scan", {}).copy()
+            baseline_steps = baseline_scan.get("steps", []).copy()
+
+            scan_logger.debug(f"List motors: {motor_names}")
+            scan_logger.debug(f"List meters: {meter_names}")
+
+            def objective(motor_settings):
+                residuals = []
+                for step in baseline_steps:
+                    scan_logger.debug(f"Current motor settings: {motor_settings} for step {step['step_index']}")
+                    calibrated_motors = [(name, [motor_settings[i]]) for i, name in enumerate(motor_names)]
+                    
+                    for motor_name in step["motor_values"]:
+                        if motor_name not in motor_names:
+                            calibrated_motors.append((motor_name, [step["motor_values"][motor_name]]))
+
+                    try:
+                        scan_result = scan_func(
+                            meters=meters,
+                            motors=calibrated_motors,
+                            previous_scan=baseline_scan,
+                            save=False,
+                            **{k: v for k, v in kwargs.items() if k not in ["motors", "meters", "save", "previous_scan"]}
+                        )                        
+                    except ScanValueError as e:
+                        scan_logger.warning(f"Device value outside the allowed range! Returning large penalty.")
+                        residuals.extend([penalty] * len(meter_names))
+                        continue
+
+                    measured_value = {}
+                    for motor, values in scan_result["data"].items():
+                        for val, meter_data in values.items():
+                            for meter in meter_names:
+                                measured_value[meter] = meter_data.get(meter, 0.0)
+
+                    for meter in meter_names:
+                        residuals.append(measured_value.get(meter, 0.0) - step["meter_data"].get(meter, 0.0))
+
+                return residuals
+
+            initial_guess = [motor_initial_guess[name] for name in motor_names]
+            bounds = ([motor_bounds[name][0] for name in motor_names], [motor_bounds[name][1] for name in motor_names])
+
+            result = least_squares(
+                objective,
+                x0=initial_guess,
+                bounds=bounds if not method=="lm" else [-np.inf, np.inf],
+                method=method,
+                max_nfev=max_nfev,
+            )
+
+            scan_logger.info(f"Optimization result: {result}")
+
+            optimized_settings = result.x
+            final_motors = [(name, [optimized_settings[i]]) for i, name in enumerate(motor_names)]
+
+            baseline_scan["least_squares_fitting"] = {
+                "targets": baseline_steps,
+                "best_settings": {name: optimized_settings[i] for i, name in enumerate(motor_names)},
+                "best_value": result.cost,
+            }
+            
+            last_step = baseline_scan.get("steps", [])[-1]
+            for motor_name in last_step["motor_values"]:
+                if motor_name not in motor_names:
+                    final_motors.append((motor_name, [last_step["motor_values"][motor_name]]))
+
+            final_scan = scan_func(
+                meters=meters,
+                motors=final_motors,
+                previous_scan=baseline_scan,
+                **{k: v for k, v in kwargs.items() if k not in ["motors", "meters", "previous_scan"]}
+            )
+
+            return final_scan
+        return wrapper
+    return decorator
     
 
 def watch_measurements(observation_time=None):
@@ -377,7 +468,7 @@ def watch_measurements(observation_time=None):
             return final_scan
         return wrapper
     return decorator
-
+    
 
 def add_noise(noise_level):
     def decorator(func):

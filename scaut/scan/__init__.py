@@ -12,7 +12,7 @@ from .utils import (
     get_meters_data,
     scan_logger,
 )
-from .decorators import response_measurements, bayesian_optimization, watch_measurements
+from .decorators import response_measurements, bayesian_optimization, watch_measurements, least_squares_fitting
 from .exceptions import ScanValueError
 
 
@@ -126,6 +126,11 @@ def reply(*args, **kwargs):
 
 @bayesian_optimization(targets={}, penalty=cfg.SCAN_BAYESIAN_OPTIMIZATION_PENALTY, n_calls=cfg.SCAN_BAYESIAN_OPTIMIZATION_N_CALLS, random_state=cfg.SCAN_RANDOM_STATE, minimize=cfg.SCAN_BAYESIAN_OPTIMIZATION_MINIMIZE)
 def optimize(*args, **kwargs):
+    return scan(*args, **kwargs)
+
+
+@least_squares_fitting(targets={}, penalty=cfg.SCAN_LEAST_SQUARES_FITTING_PENALTY, method=cfg.SCAN_LEAST_SQUARES_FITTING_METHOD, max_nfev=cfg.SCAN_LEAST_SQUARES_FITTING_MAX_NFEV)
+def fit(*args, **kwargs):
     return scan(*args, **kwargs)
 
 
