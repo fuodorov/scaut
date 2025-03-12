@@ -14,6 +14,8 @@ import matplotlib.colors as mcolors
 import matplotlib.cm as cm
 from IPython.display import clear_output as cell_clear_output
 import pandas as pd
+import copy
+from numbers import Number
 
 from ..core import config as cfg
 from .exceptions import ScanValueError
@@ -405,3 +407,32 @@ def truncated_pinv(A, num_singular_values=None, rcond=1e-15):
     
     A_pinv = np.dot(Vh.T, np.dot(np.diag(s_inv), U.T))
     return A_pinv
+
+
+def transform_data(data, name_mapping={}, scale_factors={}, path=None):
+    path = path or []
+    
+    if isinstance(data, Number):
+        if path and path[-1] in scale_factors:
+            return data * scale_factors[path[-1]]
+        return data
+    elif not isinstance(data, (dict, list, tuple)):
+        return data
+    
+    if isinstance(data, dict):
+        result = {}
+        for key, value in data.items():
+            new_key = name_mapping.get(key, key)
+            
+            if isinstance(key, Number) and path and path[-1] in scale_factors:
+                new_key = key * scale_factors[path[-1]]
+            
+            new_path = path + [new_key]
+            result[new_key] = transform_data(value, name_mapping, scale_factors, new_path)
+        return result
+    
+    elif isinstance(data, (list, tuple)):
+        result = [transform_data(item, name_mapping, scale_factors, path) for item in data]
+        return tuple(result) if isinstance(data, tuple) else result
+    
+    return data
