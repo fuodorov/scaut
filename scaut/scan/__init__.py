@@ -129,7 +129,7 @@ def optimize(*args, **kwargs):
     return scan(*args, **kwargs)
 
 
-@least_squares_fitting(targets={}, penalty=cfg.SCAN_LEAST_SQUARES_FITTING_PENALTY, method=cfg.SCAN_LEAST_SQUARES_FITTING_METHOD, max_nfev=cfg.SCAN_LEAST_SQUARES_FITTING_MAX_NFEV, max_steps=cfg.SCAN_LEAST_SQUARES_FITTING_MAX_STEPS)
+@least_squares_fitting(targets={}, penalty=cfg.SCAN_LEAST_SQUARES_FITTING_PENALTY, method=cfg.SCAN_LEAST_SQUARES_FITTING_METHOD, max_nfev=cfg.SCAN_LEAST_SQUARES_FITTING_MAX_NFEV)
 def fit(*args, **kwargs):
     return scan(*args, **kwargs)
 
