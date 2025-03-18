@@ -333,8 +333,23 @@ def least_squares_fitting(targets={}, penalty=10, method="lm", max_nfev=3, max_s
             motor_initial_guess = {m[0]: m[1][0] for m in motors}
 
             baseline_scan = targets or kwargs.get("previous_scan", {}).copy()
+            if not baseline_scan:
+                baseline_scan = {
+                    "steps": max_steps * [
+                        {
+                            'step_index': 0,
+                            'motor_values': {},
+                            'meter_data': {},
+                            'check_data': {},
+                            'meter_errors': {},
+                            'check_errors': {},
+                            'timestamp': ''
+                        }
+                    ]
+                }
+            
             baseline_steps = baseline_scan.get("steps", []).copy()
-
+                
             if len(baseline_steps) > max_steps:
                 scan_logger.info(f"Using {max_steps} steps out of {len(baseline_steps)} for optimization")
                 baseline_steps = random.sample(baseline_steps, max_steps)
