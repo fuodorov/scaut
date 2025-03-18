@@ -321,7 +321,7 @@ def bayesian_optimization(targets={}, n_calls=10, random_state=42, penalty=10, m
     return decorator
 
 
-def least_squares_fitting(targets={}, penalty=10, method="lm", max_nfev=3):
+def least_squares_fitting(targets={}, penalty=10, method="lm", max_nfev=3, max_steps=3, rel_diff_step=0.1):
     def decorator(scan_func):
         @wraps(scan_func)
         def wrapper(*args, **kwargs):
@@ -335,7 +335,6 @@ def least_squares_fitting(targets={}, penalty=10, method="lm", max_nfev=3):
             baseline_scan = targets or kwargs.get("previous_scan", {}).copy()
             baseline_steps = baseline_scan.get("steps", []).copy()
 
-            max_steps = len(motor_names) * 2 // len(meter_names) + 1
             if len(baseline_steps) > max_steps:
                 scan_logger.info(f"Using {max_steps} steps out of {len(baseline_steps)} for optimization")
                 baseline_steps = random.sample(baseline_steps, max_steps)
@@ -386,6 +385,7 @@ def least_squares_fitting(targets={}, penalty=10, method="lm", max_nfev=3):
                 bounds=bounds if not method=="lm" else [-np.inf, np.inf],
                 method=method,
                 max_nfev=max_nfev,
+                diff_step=[rel_diff_step*motor_bounds[name][1] for name in motor_names] if not method=="lm" else None,
             )
 
             scan_logger.info(f"Optimization result: {result}")
