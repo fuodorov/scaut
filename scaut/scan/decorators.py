@@ -321,15 +321,16 @@ def bayesian_optimization(targets={}, n_calls=10, random_state=42, penalty=10, m
     return decorator
 
 
-def least_squares_fitting(targets={}, penalty=10, method="lm", max_nfev=3, max_steps=3, rel_diff_step=0.1):
+def least_squares_fitting(targets={}, penalty=10, method="lm", max_nfev=3, max_steps=3):
     def decorator(scan_func):
         @wraps(scan_func)
         def wrapper(*args, **kwargs):
             scan_logger.info("Launching the least_squares fitting decorator.")
 
-            motors, meters = kwargs.get("motors", []), kwargs.get("meters", [])
-            motor_names, meter_names = [m[0] for m in motors], [m[0] for m in meters]
-            motor_bounds = {m[0]: (m[1][0]-m[1][1], m[1][0]+m[1][1]) for m in motors}
+            motors, meters, checks = kwargs.get("motors", []), kwargs.get("meters", []), kwargs.get("checks", [])
+            motor_names, meter_names, check_names = [m[0] for m in motors], [m[0] for m in meters], [m[0] for m in checks]
+            check_bounds = {m[0]: (m[1][0], m[1][1]) for m in checks}
+            motor_bounds = {m[0]: check_bounds.get(m[0], (-np.inf, np.inf)) for m in motors}
             motor_initial_guess = {m[0]: m[1][0] for m in motors}
 
             baseline_scan = targets or kwargs.get("previous_scan", {}).copy()
@@ -362,6 +363,15 @@ def least_squares_fitting(targets={}, penalty=10, method="lm", max_nfev=3, max_s
                 for step in baseline_steps:
                     scan_logger.debug(f"Current motor settings: {motor_settings} for step {step['step_index']}")
                     calibrated_motors = [(name, [motor_settings[i]]) for i, name in enumerate(motor_names)]
+                    calibrated_meters = []
+                    
+                    for meter_name, meter_limits in meters:
+                        if meter_name in step["meter_data"]:
+                            target = step["meter_data"].get(meter_name, 0.0)
+                            new_limits = [target + meter_limits[0], target + meter_limits[1]]
+                            calibrated_meters.append((meter_name, new_limits))
+                        else:
+                            calibrated_meters.append((meter_name, meter_limits))
                     
                     for motor_name in step["motor_values"]:
                         if motor_name not in motor_names:
@@ -369,7 +379,7 @@ def least_squares_fitting(targets={}, penalty=10, method="lm", max_nfev=3, max_s
 
                     try:
                         scan_result = scan_func(
-                            meters=meters,
+                            meters=calibrated_meters,
                             motors=calibrated_motors,
                             previous_scan=baseline_scan,
                             save=False,
@@ -393,14 +403,15 @@ def least_squares_fitting(targets={}, penalty=10, method="lm", max_nfev=3, max_s
 
             initial_guess = [motor_initial_guess[name] for name in motor_names]
             bounds = ([motor_bounds[name][0] for name in motor_names], [motor_bounds[name][1] for name in motor_names])
-
+            rel_diff_steps = [motor[1][1] for motor in motors]
+            
             result = least_squares(
                 objective,
                 x0=initial_guess,
                 bounds=bounds if not method=="lm" else [-np.inf, np.inf],
                 method=method,
                 max_nfev=max_nfev,
-                diff_step=[rel_diff_step*motor_bounds[name][1] for name in motor_names] if not method=="lm" else None,
+                diff_step=rel_diff_steps if not method=="lm" else None,
             )
 
             scan_logger.info(f"Optimization result: {result}")
@@ -412,6 +423,7 @@ def least_squares_fitting(targets={}, penalty=10, method="lm", max_nfev=3, max_s
                 "targets": baseline_steps,
                 "best_settings": {name: optimized_settings[i] for i, name in enumerate(motor_names)},
                 "best_value": result.cost,
+                "method": method,
             }
             
             last_step = baseline_scan.get("steps", [])[-1]
