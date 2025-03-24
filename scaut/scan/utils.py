@@ -290,17 +290,17 @@ def plot_generic_data(scan_data, items_key, step_value_key, title, xlabel, ylabe
         else:
             ax.plot(x_values, y_values, marker=marker, linestyle=linestyle, color=color)
 
-    if limits_key:
-        limits_dict = scan_data.get(limits_key, {})
-        for i, item in enumerate(items):
-            limits = limits_dict.get(item)
-            if limits is not None and isinstance(limits, (list, tuple)) and len(limits) == 2:
-                dx = 0.1
-                ax.hlines(y=limits[0], xmin=i - dx, xmax=i + dx,
-                          colors='red', linestyles='dashed', linewidth=2,
-                          label=f"{item} limits" if i == 0 else None)
-                ax.hlines(y=limits[1], xmin=i - dx, xmax=i + dx,
-                          colors='red', linestyles='dashed', linewidth=2)
+        if limits_key and step_index == last_step_index:
+            limits_dict = step.get(limits_key, {}) or scan_data.get(limits_key, {})
+            for i, item in enumerate(items):
+                limits = limits_dict.get(item)
+                if limits is not None and isinstance(limits, (list, tuple)) and len(limits) == 2:
+                    dx = 0.1
+                    ax.hlines(y=limits[0], xmin=i - dx, xmax=i + dx,
+                              colors='red', linestyles='dashed', linewidth=2,
+                              label=f"{item} limits" if i == 0 else None)
+                    ax.hlines(y=limits[1], xmin=i - dx, xmax=i + dx,
+                              colors='red', linestyles='dashed', linewidth=2)
 
     ax.set_xticks(list(item_indices))
     ax.set_xticklabels(items, rotation=45, ha='right')

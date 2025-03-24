@@ -81,6 +81,8 @@ def scan(meters, motors, checks=[], *, get_func, put_func, verify_motor=True,
                 "check_data": check_data,
                 "meter_errors": meter_errors,
                 "check_errors": check_errors,
+                "meter_ranges": {meter_name: meter_range for meter_name, meter_range in zip(meter_names, meter_ranges)},
+                "check_ranges": {check_name: check_range for check_name, check_range in zip(check_names, check_ranges)},
                 "timestamp": datetime.now().isoformat(),
             }
             data["steps"].append(step_data)
