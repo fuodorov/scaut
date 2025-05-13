@@ -11,7 +11,7 @@
     magnets = results/beamline.mag
     centroid = results/beam.cen
     parameters = results/parameters.sdds
-    p_central_mev = 47.99
+    p_central_mev = 38
     use_beamline = machine
     default_order = 2
 &end
@@ -26,10 +26,10 @@
 &twiss_output
     filename = results/twiss.twi
     matched = 0
-    beta_x = 4.17
-    alpha_x = -0.83
-    beta_y = 4.17
-    alpha_y = -0.83
+    beta_x = 5.38
+    alpha_x = -1.2
+    beta_y = 5.38
+    alpha_y = -1.2
     eta_x = 0
     eta_y = 0
     etap_x = 0
