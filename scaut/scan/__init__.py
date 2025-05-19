@@ -121,7 +121,7 @@ def scan(meters, motors, checks=[], *, get_func, put_func, verify_motor=True,
     return data
 
 
-@response_measurements(targets={}, max_attempts=cfg.SCAN_RESPONSE_MEASUREMENTS_MAX_ATTEMPTS, num_singular_values=cfg.SCAN_RESPONSE_MEASUREMENTS_NUM_SINGULAR_VALUES, rcond=cfg.SCAN_RESPONSE_MEASUREMENTS_RCOND)
+@response_measurements(targets={}, max_attempts=cfg.SCAN_RESPONSE_MEASUREMENTS_MAX_ATTEMPTS, num_singular_values=cfg.SCAN_RESPONSE_MEASUREMENTS_NUM_SINGULAR_VALUES, rcond=cfg.SCAN_RESPONSE_MEASUREMENTS_RCOND, response_matrices=[])
 def reply(*args, **kwargs):
     return scan(*args, **kwargs)
 
