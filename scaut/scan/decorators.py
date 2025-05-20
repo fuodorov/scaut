@@ -11,7 +11,7 @@ from .utils import scan_logger, truncated_pinv
 from ..core import config as cfg
 from .exceptions import ScanValueError
 
-def response_measurements(targets={}, max_attempts=10, num_singular_values=10, rcond=1e-15, inverse_mode=True, response_matrices=[]):
+def response_measurements(targets={}, max_attempts=10, num_singular_values=10, rcond=1e-15, inverse_mode=True, calc_matrix=None):
     def decorator(scan_func):
         @wraps(scan_func)
         def wrapper(*args, **kwargs):
@@ -60,8 +60,11 @@ def response_measurements(targets={}, max_attempts=10, num_singular_values=10, r
                 if inverse_mode
                 else [np.array(off_values) + np.array(on_values)]
             )
-            
-            if not response_matrices:
+
+            response_matrices = []
+            if not calc_matrix is None:
+                response_matrices.append(calc_matrix)
+            else:
                 for initial_on_values in on_values_all:
                     current_on_values = initial_on_values.copy()
                     motors_matrix, measurements_matrix = [], []
