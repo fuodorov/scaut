@@ -167,7 +167,7 @@ def response_measurements(targets={}, max_attempts=10, num_singular_values=10, r
                         f"Candidate {candidate}: Device value outside the allowed range! "
                         "Next candidate and retrying..."
                     )
-                    break
+                    continue
                     
                 previous_scan.update(final_result_candidate)
                 candidate_array = [final_result_candidate["steps"][-1]["meter_data"][name] for name in meter_names]
@@ -541,6 +541,16 @@ def add_plot_params(items_key, step_value_key, title="Data Plot", xlabel="Device
             for key, value in defaults.items():
                 kwargs.setdefault(key, value)
             return func(*args, **kwargs)
+        return wrapper
+    return decorator
+    
+
+def iloc(i=0):
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            result = func(*args, **kwargs)
+            return result[i] if len(result) > 1 else result
         return wrapper
     return decorator
     
