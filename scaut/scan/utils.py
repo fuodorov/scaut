@@ -250,7 +250,7 @@ def print_scan_data(scan_data, step_range=None):
 
 
 def plot_generic_data(scan_data, items_key, step_value_key, title, xlabel, ylabel,
-                      step_range=None, limits_key=None, errors_key=None, figsize=(24, 6)):
+                      step_range=None, limits_key=None, errors_key=None, fig_size_x=12, fig_size_y=6):
     items = scan_data.get(items_key, [])
     all_steps = scan_data.get("steps", [])
     if step_range is not None:
@@ -272,7 +272,7 @@ def plot_generic_data(scan_data, items_key, step_value_key, title, xlabel, ylabe
     scalar_map = cm.ScalarMappable(norm=norm, cmap=cmap)
     scalar_map.set_array([])
 
-    fig, ax = plt.subplots(figsize=figsize)
+    fig, ax = plt.subplots(figsize=(fig_size_x, fig_size_y))
 
     for step in steps:
         step_index = step.get("step_index")
