@@ -167,7 +167,7 @@ def response_measurements(targets={}, max_attempts=10, num_singular_values=10, r
                         f"Candidate {candidate}: Device value outside the allowed range! "
                         "Next candidate and retrying..."
                     )
-                    continue
+                    break
                     
                 previous_scan.update(final_result_candidate)
                 candidate_array = [final_result_candidate["steps"][-1]["meter_data"][name] for name in meter_names]
