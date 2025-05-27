@@ -525,7 +525,7 @@ def add_noise(noise_level):
     
 
 def add_plot_params(items_key, step_value_key, title="Data Plot", xlabel="Devices", ylabel="Device Values", 
-                    limits_key=None, errors_key=None):
+                    limits_key=None, errors_key=None, fig_size_x=12, fig_size_y=6):
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
@@ -536,7 +536,9 @@ def add_plot_params(items_key, step_value_key, title="Data Plot", xlabel="Device
                 "xlabel": xlabel,
                 "ylabel": ylabel,
                 "limits_key": limits_key,
-                "errors_key": errors_key
+                "errors_key": errors_key,
+                "fig_size_x": fig_size_x,
+                "fig_size_y": fig_size_y
             }
             for key, value in defaults.items():
                 kwargs.setdefault(key, value)
@@ -550,7 +552,9 @@ def iloc(i=0):
         @wraps(func)
         def wrapper(*args, **kwargs):
             result = func(*args, **kwargs)
-            return result[i] if len(result) > 1 else result
+            if not hasattr(result, "__iter__"):
+                return result
+            return float(result[i]) if len(result) > i else 0.0
         return wrapper
     return decorator
     
