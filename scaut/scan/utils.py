@@ -201,6 +201,8 @@ def plot_scan_data(scan_data, step_range=None):
 
     plt.tight_layout(rect=[0, 0, 1, 1])
 
+    return fig
+
 
 def print_table_scan_data(scan_data, step_range=None):
     all_steps = scan_data.get("steps", [])
@@ -315,9 +317,11 @@ def plot_generic_data(scan_data, items_key, step_value_key, title, xlabel, ylabe
     plt.tight_layout()
     plt.show()
 
+    return fig
+
 
 def plot_meters_data(scan_data, step_range=None):
-    plot_generic_data(
+    return plot_generic_data(
         scan_data,
         items_key="meters",
         step_value_key="meter_data",
@@ -331,7 +335,7 @@ def plot_meters_data(scan_data, step_range=None):
 
 
 def plot_checks_data(scan_data, step_range=None):
-    plot_generic_data(
+    return plot_generic_data(
         scan_data,
         items_key="checks",
         step_value_key="check_data",
@@ -345,7 +349,7 @@ def plot_checks_data(scan_data, step_range=None):
 
 
 def plot_motors_data(scan_data, step_range=None):
-    plot_generic_data(
+    return plot_generic_data(
         scan_data,
         items_key="motors",
         step_value_key="motor_values",
@@ -388,6 +392,8 @@ def plot_response_matrix(scan_data):
     ax.grid(False)
     plt.tight_layout()
     plt.show()
+
+    return fig
 
 
 def clear_output(*args):
