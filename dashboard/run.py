@@ -1,7 +1,7 @@
 import streamlit as st
 import json
 from pathlib import Path
-from scaut.scan.utils import plot_generic_data
+from scaut.scan.utils import plot_generic_data, plot_response_matrix  # Добавляем импорт новой функции
 import settings
 from app_utils import scan_for_data_files, format_file_name, prepare_step_range
 
@@ -97,35 +97,47 @@ def main():
                 st.error(f"Error loading file: {e}")
                 return
 
+    # Check if response matrix is available
+    has_response_matrix = "response_measurements" in scan_data
+
     # Get available steps
     all_steps = scan_data.get("steps", [])
-    if not all_steps:
-        st.error("No steps found in the data")
+    has_steps = bool(all_steps)
+
+    if not has_steps and not has_response_matrix:
+        st.error("No steps found in the data and no response matrix available")
         return
 
-    max_step_index = len(all_steps) - 1
+    # Step controls (only show if steps are available)
+    if has_steps:
+        max_step_index = len(all_steps) - 1
 
-    # Step controls
-    st.sidebar.header("Step Controls")
-    num_steps = st.sidebar.slider(
-        "Number of Steps to Show",
-        1,
-        10,
-        settings.DEFAULT_NUM_STEPS
-    )
-    last_step = st.sidebar.slider(
-        "Last Step Index",
-        1,  # Start from 0 for index-based operations
-        max_step_index,
-        max_step_index
-    )
-    step_range = prepare_step_range(last_step, num_steps, max_step_index)
-    scan_data["steps"] = scan_data["steps"][step_range[0]:step_range[1]:step_range[2]]
+        st.sidebar.header("Step Controls")
+        num_steps = st.sidebar.slider(
+            "Number of Steps to Show",
+            1,
+            10,
+            settings.DEFAULT_NUM_STEPS
+        )
+        last_step = st.sidebar.slider(
+            "Last Step Index",
+            0,  # Start from 0 for index-based operations
+            max_step_index,
+            max_step_index
+        )
+        step_range = prepare_step_range(last_step, num_steps, max_step_index)
+        scan_data["steps"] = scan_data["steps"][step_range[0]:step_range[1]:step_range[2]]
+
     # Sidebar controls
     st.sidebar.header("Plot Configuration")
-    available_plots = get_available_plots(scan_data)
+    available_plots = get_available_plots(scan_data) if has_steps else []
 
-    if not available_plots:
+    # Prepare tab names
+    tab_names = [cfg["name"] for cfg in available_plots]
+    if has_response_matrix:
+        tab_names.append("Response Matrix")
+
+    if not available_plots and not has_response_matrix:
         st.error("No valid data found in the file")
         return
 
@@ -144,12 +156,12 @@ def main():
         settings.DEFAULT_FIG_HEIGHT_PER_PLOT
     )
 
-    # Create tabs for each plot
-    tabs = st.tabs([cfg["name"] for cfg in available_plots])
+    # Create tabs
+    tabs = st.tabs(tab_names)
 
-    for i, tab in enumerate(tabs):
-        with tab:
-            cfg = available_plots[i]
+    # Plot regular data tabs
+    for i, cfg in enumerate(available_plots):
+        with tabs[i]:
             fig = plot_generic_data(
                 scan_data=scan_data,
                 items_key=cfg["items_key"],
@@ -172,10 +184,30 @@ def main():
             else:
                 st.error(f"No {cfg['name']} data to display with current settings")
 
+    # Plot response matrix if available
+    if has_response_matrix:
+        response_tab_index = len(available_plots)
+        with tabs[response_tab_index]:
+            st.subheader("Response Matrix")
+            try:
+                fig = plot_response_matrix(scan_data)
+                if fig:
+                    st.pyplot(fig)
+                    st.caption("Response matrix visualization showing the relationship between inputs and outputs.")
+                else:
+                    st.warning("Response matrix data is present but could not be visualized.")
+            except Exception as e:
+                st.error(f"Error plotting response matrix: {e}")
+                st.exception(e)
+
     # Show raw data if requested
     if st.sidebar.checkbox("Show Raw Data"):
         st.subheader("Raw Data")
-        st.json(scan_data["steps"])
+        if has_steps:
+            st.json(scan_data["steps"])
+        if has_response_matrix:
+            st.subheader("Response Matrix Data")
+            st.json(scan_data["response_measurements"])
 
 
 if __name__ == "__main__":
