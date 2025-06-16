@@ -77,8 +77,8 @@ def main():
         if uploaded_file is None:
             # Show first available default if exists
             if default_files:
-                first_file = next(iter(default_files.values()))
-                display_name = format_file_name(first_file.name)
+                first_file, size = next(iter(default_files.values()))
+                display_name = format_file_name(first_file.name, size)
                 st.info(f"Using default dataset: {display_name}")
                 try:
                     scan_data = load_json_file(first_file)
