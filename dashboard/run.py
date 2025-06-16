@@ -51,7 +51,7 @@ def main():
             return
 
         # Create user-friendly display names
-        file_options = {format_file_name(name): path for name, path in default_files.items()}
+        file_options = {format_file_name(name, size): path for name, [path, size] in default_files.items()}
 
         selected_display = st.sidebar.selectbox(
             "Select default dataset",

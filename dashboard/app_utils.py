@@ -2,6 +2,12 @@ import streamlit as st
 from pathlib import Path
 import settings
 
+def sizeof_fmt(num, suffix="B"):
+    for unit in ("", "Ki", "Mi", "Gi", "Ti", "Pi", "Ei", "Zi"):
+        if abs(num) < 1024.0:
+            return f"{num:3.1f}{unit}{suffix}"
+        num /= 1024.0
+    return f"{num:.1f}Yi{suffix}"
 
 def scan_for_data_files():
     """Scan for JSON files in the default data directory with sorting options"""
@@ -31,10 +37,10 @@ def scan_for_data_files():
     reverse = settings.SORT_ORDER == "descending"
     sorted_files = sorted(files, key=key, reverse=reverse)
 
-    return {f.name: f for f in sorted_files}
+    return {f.name: [f, f.stat().st_size] for f in sorted_files}
 
 
-def format_file_name(name):
+def format_file_name(name, size):
     """Format file name for better display"""
     # Remove extension
     name = Path(name).stem
@@ -43,7 +49,7 @@ def format_file_name(name):
     name = name.replace("_", " ").replace("-", " ")
 
     # Capitalize first letter of each word
-    return " ".join(word.capitalize() for word in name.split())
+    return " ".join(word.capitalize() for word in name.split()) + f" ({sizeof_fmt(size)})"
 
 
 def prepare_step_range(last_step, num_steps, max_step_index):
